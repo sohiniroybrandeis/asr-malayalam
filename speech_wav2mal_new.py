@@ -217,7 +217,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer.get_vocab()),  # Fix: Use .get_vocab()
 )
 
-Wav2Vec2Processor.save_pretrained("results")
+processor.save_pretrained("results")
 
 # model = Wav2Vec2ForCTC.from_pretrained(
 #     "facebook/wav2vec2-base", 
@@ -262,23 +262,22 @@ trainer = Trainer(
 
 trainer.train()
 
+processor = Wav2Vec2Processor.from_pretrained("results/checkpoint-160")
+model = Wav2Vec2ForCTC.from_pretrained("results/checkpoint-160")
 
-# processor = Wav2Vec2Processor.from_pretrained("results")
-# model = Wav2Vec2ForCTC.from_pretrained("results")
+def map_to_result(batch):
+  with torch.no_grad():
+    input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
+    logits = model(input_values).logits
 
-# def map_to_result(batch):
-#   with torch.no_grad():
-#     input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
-#     logits = model(input_values).logits
-
-#   pred_ids = torch.argmax(logits, dim=-1)
-#   batch["pred_str"] = processor.batch_decode(pred_ids)[0]
-#   batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
+  pred_ids = torch.argmax(logits, dim=-1)
+  batch["pred_str"] = processor.batch_decode(pred_ids)[0]
+  batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
   
-#   return batch
+  return batch
 
-# results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
+results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
 
-# print(results.to_pandas())
+print(results.to_pandas())
 
-# print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
+print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
