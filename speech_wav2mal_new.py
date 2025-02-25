@@ -15,7 +15,8 @@ from typing import Any, Dict, List, Optional, Union
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 
-mal_data = DatasetDict()
+mal_data_train = DatasetDict()
+mal_data_test = DatasetDict()
 
 # Load the Malayalam subset of Common Voice
 mal_data_train = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="train+validation")
@@ -135,9 +136,7 @@ def prepare_dataset(batch):
 
 mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=mal_data_train.column_names)
 mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=mal_data_test.column_names)
-
 # # Apply the dataset transformation
-# mal_data = mal_data.map(prepare_dataset, remove_columns=mal_data.column_names["train"])
 
 # # sample = mal_data["train"][0]
 # # plt.plot(sample["input_values"])
@@ -230,30 +229,14 @@ model = Wav2Vec2ForCTC.from_pretrained(
 
 model.freeze_feature_extractor()
 
-# # training_args = TrainingArguments(
-# #   output_dir="./results/wav2vec2_malayalam/",
-# #   group_by_length=True,
-# #   per_device_train_batch_size=32,
-# #   evaluation_strategy="steps",
-# #   num_train_epochs=30,
-# #   fp16=False,
-# #   gradient_checkpointing=True, 
-# #   save_steps=500,
-# #   eval_steps=500,
-# #   logging_steps=500,
-# #   learning_rate=1e-4,
-# #   weight_decay=0.005,
-# #   warmup_steps=1000,
-# #   save_total_limit=2,
-# # )
 
 training_args = TrainingArguments(
   output_dir="./results/",
-  group_by_length=True,
-  per_device_train_batch_size=32,
+  group_by_length=False,
+  per_device_train_batch_size=16,
   evaluation_strategy="steps",
   num_train_epochs=10,
-  fp16=False,
+  fp16=True,
   gradient_checkpointing=True, 
   save_steps=500,
   eval_steps=500,
@@ -274,26 +257,26 @@ trainer = Trainer(
     tokenizer=processor.feature_extractor,
 )
 
+
 trainer.train()
 
 
-processor = Wav2Vec2Processor.from_pretrained("./results/checkpoint-960")
-model = Wav2Vec2ForCTC.from_pretrained("./results/checkpoint-960")
+# processor = Wav2Vec2Processor.from_pretrained("results")
+# model = Wav2Vec2ForCTC.from_pretrained("results")
 
+# def map_to_result(batch):
+#   with torch.no_grad():
+#     input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
+#     logits = model(input_values).logits
 
-def map_to_result(batch):
-  with torch.no_grad():
-    input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
-    logits = model(input_values).logits
-
-  pred_ids = torch.argmax(logits, dim=-1)
-  batch["pred_str"] = processor.batch_decode(pred_ids)[0]
-  batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
+#   pred_ids = torch.argmax(logits, dim=-1)
+#   batch["pred_str"] = processor.batch_decode(pred_ids)[0]
+#   batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
   
-  return batch
+#   return batch
 
-results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
+# results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
 
-print(results.to_pandas())
+# print(results.to_pandas())
 
-print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
+# print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
