@@ -217,6 +217,8 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer.get_vocab()),  # Fix: Use .get_vocab()
 )
 
+Wav2Vec2Processor.save_pretrained("results")
+
 # model = Wav2Vec2ForCTC.from_pretrained(
 #     "facebook/wav2vec2-base", 
 #     ctc_loss_reduction="mean", 
