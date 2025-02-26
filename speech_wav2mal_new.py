@@ -9,7 +9,7 @@ import json
 import numpy as np
 import torchaudio
 import torch
-from transformers import Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
+from transformers import AutoModelForCTC, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 import matplotlib.pyplot as plt
@@ -90,6 +90,7 @@ tokenizer = Wav2Vec2CTCTokenizer("vocab.json", unk_token="[UNK]", pad_token="[PA
 
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=False)
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
+processor.save_pretrained("results")
 
 # # rand_int = random.randint(0, len(mal_data["train"]))
 
@@ -134,8 +135,9 @@ def prepare_dataset(batch):
 
     return batch
 
-mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=mal_data_train.column_names)
-mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=mal_data_test.column_names)
+mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=[col for col in mal_data_train.column_names if col != "sentence"])
+mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=[col for col in mal_data_test.column_names if col != "sentence"])
+
 # # Apply the dataset transformation
 
 # # sample = mal_data["train"][0]
@@ -188,7 +190,7 @@ class DataCollatorCTCWithPadding:
         batch["labels"] = labels
 
         return batch
-    
+
 data_collator = DataCollatorCTCWithPadding(processor=processor)
 
 wer_metric = load("wer")
@@ -217,14 +219,6 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer.get_vocab()),  # Fix: Use .get_vocab()
 )
 
-processor.save_pretrained("results")
-
-# model = Wav2Vec2ForCTC.from_pretrained(
-#     "facebook/wav2vec2-base", 
-#     ctc_loss_reduction="mean", 
-#     pad_token_id=processor.tokenizer.pad_token_id,
-#     vocab_size=len(tokenizer.get_vocab())
-# )
 # # print("Vocab", vocab_dict)
 # # print("Pad token ID:", processor.tokenizer.pad_token_id)
 # # print("Vocabulary size:", len(tokenizer.get_vocab()))
@@ -259,11 +253,23 @@ trainer = Trainer(
     tokenizer=processor.feature_extractor,
 )
 
-
 trainer.train()
 
-processor = Wav2Vec2Processor.from_pretrained("results/checkpoint-160")
-model = Wav2Vec2ForCTC.from_pretrained("results/checkpoint-160")
+processor = Wav2Vec2Processor.from_pretrained("results")
+model = Wav2Vec2ForCTC.from_pretrained("results/checkpoint-320")
+
+# sample = mal_data_test[0]
+# input_values = torch.tensor(sample["input_values"]).to("cpu").unsqueeze(0)
+
+# with torch.no_grad():
+#     logits = model(input_values).logits
+
+# pred_ids = torch.argmax(logits, dim=-1)[0]
+
+# mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
+
+# print(processor.decode(pred_ids))
+# print(mal_data_test_transcription[0]["sentence"].lower())
 
 def map_to_result(batch):
   with torch.no_grad():
@@ -281,3 +287,5 @@ results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_n
 print(results.to_pandas())
 
 print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
+
+# show_random_elements(results.remove_columns(["speech", "sampling_rate"]))
