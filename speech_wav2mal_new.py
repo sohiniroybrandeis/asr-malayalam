@@ -258,19 +258,6 @@ trainer.train()
 processor = Wav2Vec2Processor.from_pretrained("results")
 model = Wav2Vec2ForCTC.from_pretrained("results/checkpoint-320")
 
-# sample = mal_data_test[0]
-# input_values = torch.tensor(sample["input_values"]).to("cpu").unsqueeze(0)
-
-# with torch.no_grad():
-#     logits = model(input_values).logits
-
-# pred_ids = torch.argmax(logits, dim=-1)[0]
-
-# mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
-
-# print(processor.decode(pred_ids))
-# print(mal_data_test_transcription[0]["sentence"].lower())
-
 def map_to_result(batch):
   with torch.no_grad():
     input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
@@ -282,7 +269,7 @@ def map_to_result(batch):
   
   return batch
 
-results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
+results = mal_data_test.map(map_to_result, remove_columns = [col for col in mal_data_test.column_names if col != "sentence"])
 
 print(results.to_pandas())
 
