@@ -22,10 +22,6 @@ mal_data_test = DatasetDict()
 mal_data_train = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="train+validation")
 mal_data_test = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
 
-# Inspect the first example
-# print(mal_data[0])
-# print(mal_data["train"][0])
-
 mal_data_train = mal_data_train.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
 mal_data_test = mal_data_test.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
 
@@ -41,20 +37,14 @@ def show_random_elements(dataset, num_examples=10):
     df = pd.DataFrame(dataset[picks])
     display(df)
 
-# show_random_elements(mal_data_train.remove_columns(["path", "audio"]))
-
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
     batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     return batch
 
-# mal_data = mal_data.map(remove_special_characters)
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
-
-# show_random_elements(mal_data_train.remove_columns(["path", "audio"]))
-# # show_random_elements(mal_data["train"])
 
 def extract_all_chars(batch):
   all_text = " ".join(batch["sentence"])
@@ -79,41 +69,15 @@ len(vocab_dict)
 with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
 
-# print(vocab_dict)
+print(vocab_dict)
 
 tokenizer = Wav2Vec2CTCTokenizer("vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-# tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-# # print("vocab len", len(tokenizer.get_vocab()))
-
-# # print("Tokenizer special tokens map:", tokenizer.special_tokens_map)
-# # print("All special tokens:", tokenizer.all_special_tokens)
-
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=False)
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 processor.save_pretrained("results")
 
-# # rand_int = random.randint(0, len(mal_data["train"]))
-
-# # print("Target text:", mal_data["train"][rand_int]["sentence"])
-# # print("Input array shape:", np.asarray(mal_data["train"][rand_int]["audio"]["array"]).shape)
-# # print("Sampling rate:", mal_data["train"][rand_int]["audio"]["sampling_rate"])
-
-# print(mal_data_train[0]["audio"])
-
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
 mal_data_test = mal_data_test.cast_column("audio", Audio(sampling_rate=16_000))
-
-# rand_int = random.randint(0, len(mal_data_train)-1)
-
-# print(mal_data_train[rand_int]["sentence"])
-# audio_array = mal_data_train[rand_int]["audio"]["array"]
-
-# # Normalize and convert to int16
-# audio_int16 = np.int16(audio_array * 32767)
-
-# # Save as WAV file
-# write('test.wav', 16000, audio_int16)
-# print(ipd.Audio(data=mal_data_train[rand_int]["audio"]["array"], autoplay=True, rate=16000))
 
 def prepare_dataset(batch):
     audio = batch["audio"]
@@ -135,15 +99,9 @@ def prepare_dataset(batch):
 
     return batch
 
-mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=[col for col in mal_data_train.column_names if col != "sentence"])
-mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=[col for col in mal_data_test.column_names if col != "sentence"])
+mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=["audio"])  # Keep input_values
+mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=["audio"])
 
-# # Apply the dataset transformation
-
-# # sample = mal_data["train"][0]
-# # plt.plot(sample["input_values"])
-# # plt.title("Sample Audio Input")
-# # plt.show()
 
 class DataCollatorCTCWithPadding:
     def __init__(
@@ -219,28 +177,24 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer.get_vocab()),  # Fix: Use .get_vocab()
 )
 
-# # print("Vocab", vocab_dict)
-# # print("Pad token ID:", processor.tokenizer.pad_token_id)
-# # print("Vocabulary size:", len(tokenizer.get_vocab()))
-
 model.freeze_feature_extractor()
 
 
 training_args = TrainingArguments(
-  output_dir="./results/",
-  group_by_length=False,
-  per_device_train_batch_size=16,
-  evaluation_strategy="steps",
-  num_train_epochs=10,
-  fp16=True,
-  gradient_checkpointing=True, 
-  save_steps=500,
-  eval_steps=500,
-  logging_steps=500,
-  learning_rate=1e-4,
-  weight_decay=0.005,
-  warmup_steps=1000,
-  save_total_limit=2,
+    output_dir="./results/",
+    group_by_length=False,
+    per_device_train_batch_size=16,
+    evaluation_strategy="steps",
+    num_train_epochs=10,
+    fp16=False,
+    gradient_checkpointing=False,
+    save_steps=500,
+    eval_steps=500,
+    logging_steps=500,
+    learning_rate=5e-5,  # Reduce the learning rate to a smaller value
+    weight_decay=0.005,
+    warmup_steps=1000,
+    save_total_limit=2,
 )
 
 trainer = Trainer(
@@ -248,10 +202,11 @@ trainer = Trainer(
     data_collator=data_collator,
     args=training_args,
     compute_metrics=compute_metrics,
-    train_dataset=mal_data_train,
+    train_dataset=mal_data_train.shuffle(),  # Ensure shuffling
     eval_dataset=mal_data_test,
     tokenizer=processor.feature_extractor,
 )
+
 
 trainer.train()
 
@@ -264,6 +219,7 @@ def map_to_result(batch):
     logits = model(input_values).logits
 
   pred_ids = torch.argmax(logits, dim=-1)
+
   batch["pred_str"] = processor.batch_decode(pred_ids)[0]
   batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
   
@@ -274,5 +230,3 @@ results = mal_data_test.map(map_to_result, remove_columns = [col for col in mal_
 print(results.to_pandas())
 
 print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
-
-# show_random_elements(results.remove_columns(["speech", "sampling_rate"]))
