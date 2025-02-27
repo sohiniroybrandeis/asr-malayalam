@@ -69,7 +69,7 @@ len(vocab_dict)
 with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
 
-print(vocab_dict)
+# print(vocab_dict)
 
 tokenizer = Wav2Vec2CTCTokenizer("vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=False)
@@ -102,6 +102,11 @@ def prepare_dataset(batch):
 mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=["audio"])  # Keep input_values
 mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=["audio"])
 
+# sample = mal_data_train[0]
+# plt.plot(sample["input_values"])
+# plt.title("Sample Audio Input")
+# plt.show() #added to view audio- looks pretty reasonable
+
 
 class DataCollatorCTCWithPadding:
     def __init__(
@@ -121,54 +126,59 @@ class DataCollatorCTCWithPadding:
         self.pad_to_multiple_of_labels = pad_to_multiple_of_labels
 
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # split inputs and labels since they have to be of different lengths and need
-        # different padding methods
+        # Separate input values and labels
         input_features = [{"input_values": feature["input_values"]} for feature in features]
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
+        label_features = [{"input_ids": feature["labels"]} for feature in features if feature["labels"] is not None]
 
-        batch = self.processor.pad(
+        # Pad inputs
+        batch = self.processor.feature_extractor.pad(
             input_features,
             padding=self.padding,
             max_length=self.max_length,
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
         )
-        with self.processor.as_target_processor():
-            labels_batch = self.processor.pad(
-                label_features,
-                padding=self.padding,
-                max_length=self.max_length_labels,
-                pad_to_multiple_of=self.pad_to_multiple_of_labels,
-                return_tensors="pt",
-            )
 
-        # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
+        # Pad labels
+        labels_batch = self.processor.tokenizer.pad(
+            label_features,
+            padding=self.padding,
+            max_length=self.max_length_labels,
+            pad_to_multiple_of=self.pad_to_multiple_of_labels,
+            return_tensors="pt",
+        )
+
+        # Replace padding tokens with -100 for loss calculation
+        labels = labels_batch["input_ids"]
+        labels[labels == self.processor.tokenizer.pad_token_id] = -100
 
         batch["labels"] = labels
 
         return batch
 
+# Initialize collator
 data_collator = DataCollatorCTCWithPadding(processor=processor)
 
 wer_metric = load("wer")
+
 
 def compute_metrics(pred):
     pred_logits = pred.predictions
     pred_ids = np.argmax(pred_logits, axis=-1)
 
-    # pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
-    label_ids = pred.label_ids
+    # Create a copy of label_ids to avoid modifying the original array
+    label_ids = pred.label_ids.copy()
     label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
 
-
+    # Decode predictions and labels
     pred_str = processor.batch_decode(pred_ids)
-    # we do not want to group tokens when computing the metrics
-    label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+    label_str = processor.batch_decode(label_ids, group_tokens=False)
 
+    # Compute Word Error Rate (WER)
     wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
     return {"wer": wer}
+
 
 model = Wav2Vec2ForCTC.from_pretrained(
     "facebook/wav2vec2-base",
@@ -186,12 +196,12 @@ training_args = TrainingArguments(
     per_device_train_batch_size=16,
     evaluation_strategy="steps",
     num_train_epochs=10,
-    fp16=False,
+    fp16=True,
     gradient_checkpointing=False,
     save_steps=500,
     eval_steps=500,
     logging_steps=500,
-    learning_rate=5e-5,  # Reduce the learning rate to a smaller value
+    learning_rate=5e-5,
     weight_decay=0.005,
     warmup_steps=1000,
     save_total_limit=2,
@@ -202,7 +212,7 @@ trainer = Trainer(
     data_collator=data_collator,
     args=training_args,
     compute_metrics=compute_metrics,
-    train_dataset=mal_data_train.shuffle(),  # Ensure shuffling
+    train_dataset=mal_data_train.shuffle(),
     eval_dataset=mal_data_test,
     tokenizer=processor.feature_extractor,
 )
