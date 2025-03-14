@@ -74,7 +74,7 @@ with open('vocab.json', 'w') as vocab_file:
 tokenizer = Wav2Vec2CTCTokenizer("vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=False)
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
-processor.save_pretrained("results")
+# processor.save_pretrained("results")
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
 mal_data_test = mal_data_test.cast_column("audio", Audio(sampling_rate=16_000))
@@ -181,10 +181,15 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "facebook/wav2vec2-base",
-    ctc_loss_reduction="mean",
+    "facebook/wav2vec2-xls-r-300m", 
+    attention_dropout=0.0,
+    hidden_dropout=0.0,
+    feat_proj_dropout=0.0,
+    mask_time_prob=0.05,
+    layerdrop=0.0,
+    ctc_loss_reduction="mean", 
     pad_token_id=processor.tokenizer.pad_token_id,
-    vocab_size=len(processor.tokenizer.get_vocab()),  # Fix: Use .get_vocab()
+    vocab_size=len(processor.tokenizer),
 )
 
 model.freeze_feature_extractor()
