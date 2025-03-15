@@ -15,9 +15,6 @@ from typing import Any, Dict, List, Optional, Union
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 
-mal_data_train = DatasetDict()
-mal_data_test = DatasetDict()
-
 # Load the Malayalam subset of Common Voice
 mal_data_train = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="train+validation")
 mal_data_test = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
@@ -37,6 +34,8 @@ def show_random_elements(dataset, num_examples=10):
     df = pd.DataFrame(dataset[picks])
     display(df)
 
+# show_random_elements(mal_data_train.remove_columns(["path", "audio", "segment", "variant"]), num_examples=10)
+
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
@@ -45,6 +44,8 @@ def remove_special_characters(batch):
 
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
+
+# show_random_elements(mal_data_train.remove_columns(["path","audio", "segment", "variant"]))
 
 def extract_all_chars(batch):
   all_text = " ".join(batch["sentence"])
@@ -56,129 +57,123 @@ vocab_test = mal_data_test.map(extract_all_chars, batched=True, batch_size=-1, k
 
 vocab_list = list(set(vocab_train["vocab"][0]) | set(vocab_test["vocab"][0]))
 
-vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+vocab_dict = {v: k for k, v in enumerate(sorted(vocab_list))}
 
 vocab_dict["|"] = vocab_dict[" "]
 del vocab_dict[" "]
 
 vocab_dict["[UNK]"] = len(vocab_dict)
 vocab_dict["[PAD]"] = len(vocab_dict)
-len(vocab_dict)
-# vocab_dict["|"] = vocab_dict.pop(" ")
 
 with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
 
-# print(vocab_dict)
+tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
+repo_name = "wav2vec2-large-xls-r-300m-malayalam-results"
+# print(tokenizer.tokenize("മലയാളം ഒരു മനോഹരമായ ഭാഷയാണ്"))
+tokenizer.save_pretrained(repo_name)
 
-tokenizer = Wav2Vec2CTCTokenizer("vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=False)
+feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=True)
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
-# processor.save_pretrained("results")
+
+# mal_data_train[0]["path"]
+
+# mal_data_train[0]["audio"]
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
 mal_data_test = mal_data_test.cast_column("audio", Audio(sampling_rate=16_000))
 
+# mal_data_train[0]["audio"]
+
+# rand_int = random.randint(0, len(mal_data_train)-1)
+
+# print(mal_data_train[rand_int]["sentence"])
+# ipd.Audio(data=mal_data_train[rand_int]["audio"]["array"], autoplay=True, rate=16000)
+
+# rand_int = random.randint(0, len(mal_data_train)-1)
+
+# print("Target text:", mal_data_train[rand_int]["sentence"])
+# print("Input array shape:", mal_data_train[rand_int]["audio"]["array"].shape)
+# print("Sampling rate:", mal_data_train[rand_int]["audio"]["sampling_rate"])
+
 def prepare_dataset(batch):
     audio = batch["audio"]
-    
-    # If the audio is not sampled at 16000 Hz, resample it
-    if audio["sampling_rate"] != 16000:
-        resampler = torchaudio.transforms.Resample(orig_freq=audio["sampling_rate"], new_freq=16000)
-        audio_tensor = torch.tensor(audio["array"], dtype=torch.float32)  # Convert to torch tensor (float32)
-        audio_tensor = resampler(audio_tensor)  # Apply the resampler to the audio tensor
-        audio["sampling_rate"] = 16000  # Update the sampling rate after resampling
-    else:
-        audio_tensor = torch.tensor(audio["array"], dtype=torch.float32)  # Convert to torch tensor (float32)
 
-    # Process the audio using the Wav2Vec2Processor
-    batch["input_values"] = processor(audio_tensor, sampling_rate=16000).input_values[0]
+    # batched output is "un-batched"
+    batch["input_values"] = processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_values[0]
+    batch["input_length"] = len(batch["input_values"])
     
     with processor.as_target_processor():
         batch["labels"] = processor(batch["sentence"]).input_ids
-
     return batch
 
-mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=["audio"])  # Keep input_values
-mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=["audio"])
-
-# sample = mal_data_train[0]
-# plt.plot(sample["input_values"])
-# plt.title("Sample Audio Input")
-# plt.show() #added to view audio- looks pretty reasonable
+mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=mal_data_train.column_names)
+mal_data_test = mal_data_test.map(prepare_dataset, remove_columns=mal_data_test.column_names)
 
 
+@dataclass
 class DataCollatorCTCWithPadding:
-    def __init__(
-        self,
-        processor: Wav2Vec2Processor,
-        padding: Union[bool, str] = True,
-        max_length: Optional[int] = None,
-        max_length_labels: Optional[int] = None,
-        pad_to_multiple_of: Optional[int] = None,
-        pad_to_multiple_of_labels: Optional[int] = None,
-    ):
-        self.processor = processor
-        self.padding = padding
-        self.max_length = max_length
-        self.max_length_labels = max_length_labels
-        self.pad_to_multiple_of = pad_to_multiple_of
-        self.pad_to_multiple_of_labels = pad_to_multiple_of_labels
+    """
+    Data collator that will dynamically pad the inputs received.
+    Args:
+        processor (:class:`~transformers.Wav2Vec2Processor`)
+            The processor used for proccessing the data.
+        padding (:obj:`bool`, :obj:`str` or :class:`~transformers.tokenization_utils_base.PaddingStrategy`, `optional`, defaults to :obj:`True`):
+            Select a strategy to pad the returned sequences (according to the model's padding side and padding index)
+            among:
+            * :obj:`True` or :obj:`'longest'`: Pad to the longest sequence in the batch (or no padding if only a single
+              sequence if provided).
+            * :obj:`'max_length'`: Pad to a maximum length specified with the argument :obj:`max_length` or to the
+              maximum acceptable input length for the model if that argument is not provided.
+            * :obj:`False` or :obj:`'do_not_pad'` (default): No padding (i.e., can output a batch with sequences of
+              different lengths).
+    """
+
+    processor: Wav2Vec2Processor
+    padding: Union[bool, str] = True
 
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # Separate input values and labels
+        # split inputs and labels since they have to be of different lenghts and need
+        # different padding methods
         input_features = [{"input_values": feature["input_values"]} for feature in features]
-        label_features = [{"input_ids": feature["labels"]} for feature in features if feature["labels"] is not None]
+        label_features = [{"input_ids": feature["labels"]} for feature in features]
 
-        # Pad inputs
-        batch = self.processor.feature_extractor.pad(
+        batch = self.processor.pad(
             input_features,
             padding=self.padding,
-            max_length=self.max_length,
-            pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
         )
+        with self.processor.as_target_processor():
+            labels_batch = self.processor.pad(
+                label_features,
+                padding=self.padding,
+                return_tensors="pt",
+            )
 
-        # Pad labels
-        labels_batch = self.processor.tokenizer.pad(
-            label_features,
-            padding=self.padding,
-            max_length=self.max_length_labels,
-            pad_to_multiple_of=self.pad_to_multiple_of_labels,
-            return_tensors="pt",
-        )
-
-        # Replace padding tokens with -100 for loss calculation
-        labels = labels_batch["input_ids"]
-        labels[labels == self.processor.tokenizer.pad_token_id] = -100
+        # replace padding with -100 to ignore loss correctly
+        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
 
         batch["labels"] = labels
 
         return batch
-
-# Initialize collator
-data_collator = DataCollatorCTCWithPadding(processor=processor)
+    
+data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
 wer_metric = load("wer")
-
 
 def compute_metrics(pred):
     pred_logits = pred.predictions
     pred_ids = np.argmax(pred_logits, axis=-1)
 
-    # Create a copy of label_ids to avoid modifying the original array
-    label_ids = pred.label_ids.copy()
-    label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
+    pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
 
-    # Decode predictions and labels
     pred_str = processor.batch_decode(pred_ids)
-    label_str = processor.batch_decode(label_ids, group_tokens=False)
+    # we do not want to group tokens when computing the metrics
+    label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
 
-    # Compute Word Error Rate (WER)
     wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
     return {"wer": wer}
-
 
 model = Wav2Vec2ForCTC.from_pretrained(
     "facebook/wav2vec2-xls-r-300m", 
@@ -194,22 +189,22 @@ model = Wav2Vec2ForCTC.from_pretrained(
 
 model.freeze_feature_extractor()
 
-
 training_args = TrainingArguments(
-    output_dir="./results/",
-    group_by_length=False,
-    per_device_train_batch_size=16,
-    evaluation_strategy="steps",
-    num_train_epochs=10,
-    fp16=True,
-    gradient_checkpointing=False,
-    save_steps=500,
-    eval_steps=500,
-    logging_steps=500,
-    learning_rate=5e-5,
-    weight_decay=0.005,
-    warmup_steps=1000,
-    save_total_limit=2,
+  output_dir=repo_name,
+  group_by_length=True,
+  per_device_train_batch_size=16,
+  gradient_accumulation_steps=2,
+  evaluation_strategy="steps",
+  num_train_epochs=30,
+  gradient_checkpointing=True,
+  fp16=True,
+  save_steps=400,
+  eval_steps=400,
+  logging_steps=400,
+  learning_rate=3e-4,
+  warmup_steps=500,
+  save_total_limit=2,
+  push_to_hub=False,
 )
 
 trainer = Trainer(
@@ -217,31 +212,48 @@ trainer = Trainer(
     data_collator=data_collator,
     args=training_args,
     compute_metrics=compute_metrics,
-    train_dataset=mal_data_train.shuffle(),
+    train_dataset=mal_data_train,
     eval_dataset=mal_data_test,
-    tokenizer=processor.feature_extractor,
+    tokenizer=processor 
 )
-
 
 trainer.train()
 
-processor = Wav2Vec2Processor.from_pretrained("results")
-model = Wav2Vec2ForCTC.from_pretrained("results/checkpoint-320")
+# model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-480").to("cuda")
+# processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-480")
+
+model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-480").to("cuda")
+
+processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-480")
+
+input_dict = processor(mal_data_test[0]["input_values"], return_tensors="pt", padding=True)
+
+logits = model(input_dict.input_values.to("cuda")).logits
+
+pred_ids = torch.argmax(logits, dim=-1)[0]
+
+mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
+
+print("Prediction:")
+print(processor.decode(pred_ids))
+
+print("\nReference:")
+print(mal_data_test_transcription[0]["sentence"].lower())
 
 def map_to_result(batch):
   with torch.no_grad():
-    input_values = torch.tensor(batch["input_values"], device="cpu").unsqueeze(0)
+    input_values = torch.tensor(batch["input_values"], device="cuda").unsqueeze(0)
     logits = model(input_values).logits
 
   pred_ids = torch.argmax(logits, dim=-1)
-
   batch["pred_str"] = processor.batch_decode(pred_ids)[0]
-  batch["sentence"] = processor.decode(batch["labels"], group_tokens=False)
+  batch["text"] = processor.decode(batch["labels"], group_tokens=False)
   
   return batch
 
-results = mal_data_test.map(map_to_result, remove_columns = [col for col in mal_data_test.column_names if col != "sentence"])
+results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
 
-print(results.to_pandas())
+print(results["pred_str"])
+print(results["text"])
 
-print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["sentence"])))
+print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["text"])))
