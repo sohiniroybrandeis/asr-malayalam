@@ -1,4 +1,4 @@
-from datasets import load_dataset, DatasetDict, ClassLabel, Audio
+from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset
 from evaluate import load
 import random
 import pandas as pd
@@ -16,8 +16,27 @@ import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 
 # Load the Malayalam subset of Common Voice
-mal_data_train = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="train+validation")
-mal_data_test = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
+mal_data_train = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="train+validation")
+mal_data_test = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="test")
+
+# Function to compute duration of each audio sample
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
+
+# Compute durations
+mal_data_train = mal_data_train.map(compute_durations, batched=True)
+
+selected_samples = []
+total_duration = 0.0
+
+for sample in mal_data_train:
+    if total_duration + sample["duration"] > 3600:
+        break
+    selected_samples.append(sample)
+    total_duration += sample["duration"]
+
+mal_data_train = Dataset.from_list(selected_samples)
 
 mal_data_train = mal_data_train.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
 mal_data_test = mal_data_test.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
@@ -159,7 +178,7 @@ class DataCollatorCTCWithPadding:
     
 data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
-wer_metric = load("wer")
+cer_metric = load("cer")
 
 def compute_metrics(pred):
     pred_logits = pred.predictions
@@ -170,10 +189,9 @@ def compute_metrics(pred):
     pred_str = processor.batch_decode(pred_ids)
     # we do not want to group tokens when computing the metrics
     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+    cer = cer_metric.compute(predictions=pred_str, references=label_str)
 
-    wer = wer_metric.compute(predictions=pred_str, references=label_str)
-
-    return {"wer": wer}
+    return {"cer": cer}
 
 model = Wav2Vec2ForCTC.from_pretrained(
     "facebook/wav2vec2-xls-r-300m", 
@@ -219,12 +237,10 @@ trainer = Trainer(
 
 trainer.train()
 
-# model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-480").to("cuda")
-# processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-480")
 
-model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-480").to("cuda")
+model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-840").to("cuda")
 
-processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-480")
+processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-840")
 
 input_dict = processor(mal_data_test[0]["input_values"], return_tensors="pt", padding=True)
 
@@ -232,7 +248,7 @@ logits = model(input_dict.input_values.to("cuda")).logits
 
 pred_ids = torch.argmax(logits, dim=-1)[0]
 
-mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_13_0", "ml", split="test")
+mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="test")
 
 print("Prediction:")
 print(processor.decode(pred_ids))
@@ -256,4 +272,4 @@ results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_n
 print(results["pred_str"])
 print(results["text"])
 
-print("Test WER: {:.3f}".format(wer_metric.compute(predictions=results["pred_str"], references=results["text"])))
+print("Test CER: {:.3f}".format(cer_metric.compute(predictions=results["pred_str"], references=results["text"])))
