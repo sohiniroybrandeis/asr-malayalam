@@ -2,17 +2,13 @@ from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset
 from evaluate import load
 import random
 import pandas as pd
-import IPython.display as ipd
-from IPython.display import display, HTML
 import re
 import json
 import numpy as np
-import torchaudio
 import torch
 from transformers import AutoModelForCTC, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 
 # Load the Malayalam subset of Common Voice
