@@ -1,6 +1,6 @@
 numpy==1.24.4
 packaging==24.1
-scipy==1.14.1
+scipy==1.10.1
 datasets==2.8.0       # The latest version of datasets
 evaluate==0.4.0       # The latest version of evaluate
 jiwer==2.5.1          # The latest version of jiwer
