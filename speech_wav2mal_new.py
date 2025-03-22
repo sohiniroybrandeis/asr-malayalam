@@ -9,7 +9,6 @@ import torch
 from transformers import AutoModelForCTC, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-from scipy.io.wavfile import write
 
 # Load the Malayalam subset of Common Voice
 mal_data_train = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="train+validation")
@@ -47,7 +46,6 @@ def show_random_elements(dataset, num_examples=10):
         picks.append(pick)
     
     df = pd.DataFrame(dataset[picks])
-    display(df)
 
 # show_random_elements(mal_data_train.remove_columns(["path", "audio", "segment", "variant"]), num_examples=10)
 
