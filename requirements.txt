@@ -4,7 +4,7 @@ scipy==1.10.1
 datasets==2.8.0       # The latest version of datasets
 evaluate==0.4.0       # The latest version of evaluate
 jiwer==2.5.1          # The latest version of jiwer
-torch==1.13.1+cpu -f https://download.pytorch.org/whl/cpu.html
+torch==1.13.1
 transformers==4.28.1
 dataclasses==0.8
 typing==3.9.6
