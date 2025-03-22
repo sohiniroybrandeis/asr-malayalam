@@ -4,11 +4,11 @@
 
 #SBATCH --output=results.txt
 
-#SBATCH --gres=gpu:3
+#SBATCH --gres=gpu:1       # Request 1 GPU (adjust if needed)
 
-#SBATCH --ntasks=10
+#SBATCH --ntasks=4         # Use 4 CPU tasks (for data loading)
 
-#SBATCH --mem-per-cpu=1024
+#SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
 python3 speech_wav2mal_new.py
