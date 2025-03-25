@@ -11,4 +11,4 @@
 #SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
-python3 speech_wav2mal_new.py
+python3 unadapted_xlsr.py
