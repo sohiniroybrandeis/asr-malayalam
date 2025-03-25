@@ -267,7 +267,7 @@ def map_to_result(batch):
 
 results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
 
-print(results["pred_str"])
-print(results["text"])
+#print(results["pred_str"])
+#print(results["text"])
 
 print("Test CER: {:.3f}".format(cer_metric.compute(predictions=results["pred_str"], references=results["text"])))
