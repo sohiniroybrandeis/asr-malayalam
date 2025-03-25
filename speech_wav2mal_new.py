@@ -183,6 +183,9 @@ def compute_metrics(pred):
     pred_str = processor.batch_decode(pred_ids)
     # we do not want to group tokens when computing the metrics
     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+
+    label_str = [s.replace(processor.tokenizer.pad_token, '') for s in label_str]  # Remove padding
+
     cer = cer_metric.compute(predictions=pred_str, references=label_str)
 
     return {"cer": cer}
@@ -257,7 +260,8 @@ def map_to_result(batch):
 
   pred_ids = torch.argmax(logits, dim=-1)
   batch["pred_str"] = processor.batch_decode(pred_ids)[0]
-  batch["text"] = processor.decode(batch["labels"], group_tokens=False)
+#   batch["text"] = processor.decode(batch["labels"], group_tokens=False)
+  batch["text"] = processor.decode([id for id in batch["labels"] if id != -100], group_tokens=False)  # Remove -100
   
   return batch
 
