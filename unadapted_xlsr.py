@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 # Load the Malayalam subset of Common Voice
-mal_data_train = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="train+validation")
-mal_data_test = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="test")
+mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation")
+mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
