@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 # Load the Malayalam subset of Common Voice
-mal_data_train = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="train+validation", trust_remote_code=True)
-mal_data_test = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="test", trust_remote_code=True)
+mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation", trust_remote_code=True)
+mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test", trust_remote_code=True)
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -26,39 +26,42 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data_train:
-    if total_duration + sample["duration"] > 3600:
-        break
-    selected_samples.append(sample)
     total_duration += sample["duration"]
+    # if total_duration + sample["duration"] > 3600:
+    #     break
+    # selected_samples.append(sample)
+    # total_duration += sample["duration"]
 
-mal_data_train = Dataset.from_list(selected_samples)
+print(total_duration)
 
-mal_data_train = mal_data_train.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
-mal_data_test = mal_data_test.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
+# mal_data_train = Dataset.from_list(selected_samples)
 
-chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
+# mal_data_train = mal_data_train.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
+# mal_data_test = mal_data_test.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
 
-def remove_special_characters(batch):
-    batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
-    return batch
+# chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
-mal_data_train = mal_data_train.map(remove_special_characters)
-mal_data_test = mal_data_test.map(remove_special_characters)
+# def remove_special_characters(batch):
+#     batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
+#     return batch
 
-def show_random_elements(dataset, num_examples=10):
-    assert num_examples <= len(dataset), "Can't pick more elements than there are in the dataset."
-    picks = []
-    for _ in range(num_examples):
-        pick = random.randint(0, len(dataset)-1)
-        while pick in picks:
-            pick = random.randint(0, len(dataset)-1)
-        picks.append(pick)
+# mal_data_train = mal_data_train.map(remove_special_characters)
+# mal_data_test = mal_data_test.map(remove_special_characters)
+
+# # def show_random_elements(dataset, num_examples=10):
+# #     assert num_examples <= len(dataset), "Can't pick more elements than there are in the dataset."
+# #     picks = []
+# #     for _ in range(num_examples):
+# #         pick = random.randint(0, len(dataset)-1)
+# #         while pick in picks:
+# #             pick = random.randint(0, len(dataset)-1)
+# #         picks.append(pick)
     
-    df = pd.DataFrame(dataset[picks])
-    print(df)
+# #     df = pd.DataFrame(dataset[picks])
+# #     print(df)
 
-show_random_elements(mal_data_train.remove_columns(["path", "segment", "variant"]))
-# show_random_elements(mal_data_train.remove_columns(["path","audio", "segment", "variant"]))
+# # show_random_elements(mal_data_train.remove_columns(["path", "segment", "variant"]))
+# # show_random_elements(mal_data_train.remove_columns(["path","audio", "segment", "variant"]))
 
 # def extract_all_chars(batch):
 #   all_text = " ".join(batch["sentence"])
