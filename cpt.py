@@ -191,10 +191,11 @@ training_args = TrainingArguments(
 		output_dir='wav2vec2-pretraining-res',
 		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
-		gradient_accumulation_steps=1,
-		per_device_eval_batch_size=8,
+		gradient_accumulation_steps=4,
+		per_device_eval_batch_size=2,
 		num_train_epochs=10,
-		per_device_train_batch_size=8,
+		per_device_train_batch_size=2,
+		fp16=True
 		
 		# logging...
 		logging_strategy='steps',
@@ -229,6 +230,7 @@ pt_trainer = CustomTrainer(
     tokenizer=pt_feature_extractor,
 )
 print(f"Starting training...!")
+torch.cuda.empty_cache()
 pt_trainer.train()
 
 ###FINE-TUNING CODE
