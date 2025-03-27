@@ -10,5 +10,9 @@
 
 #SBATCH --mem=32G          # Request 32GB total RAM
 
+#SBATCH --account=masters
+
+#SBATCH --partition=regular
+
 hostname
 python3 cpt.py
