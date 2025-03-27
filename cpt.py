@@ -195,7 +195,6 @@ training_args = TrainingArguments(
 		per_device_eval_batch_size=2,
 		num_train_epochs=10,
 		per_device_train_batch_size=2,
-		fp16=True
 		
 		# logging...
 		logging_strategy='steps',
