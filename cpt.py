@@ -37,7 +37,8 @@ def get_input_values(batch):
 	sample = batch['audio']	
 	batch["input_values"] = pt_feature_extractor(
 		sample['array'], sampling_rate=sample['sampling_rate'],
-		return_tensors='np'
+		return_tensors='np',
+		return_attention_mask=True
 		).input_values[0]
 	
 	# saving input_length for each sequence, might not be needed for this task.
@@ -63,8 +64,8 @@ def get_seq_indices_not_too_short(dataset, min_length):
 			good_indices.append(i)
 	return good_indices
 
-# retaining the examples having lengths greater than 2 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 2)
+# retaining the examples having lengths greater than 5 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
 pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (95% train, 9% test)
@@ -103,6 +104,8 @@ class DataCollatorForPretraining:
 			sub_attention_mask = self.model._get_feature_vector_attention_mask(
 				seq_len, batch["attention_mask"]
 			)
+		else:
+			sub_attention_mask = None  # Ensure no error occurs
 
 		features_shape = (batch_size, seq_len)
 
@@ -113,8 +116,10 @@ class DataCollatorForPretraining:
 			self.model.config.mask_time_length,
 			attention_mask=sub_attention_mask,
 		)
+		high = features_shape[1] - 1  # Ensure high is at least 1
+		if high <= 0:
+			high = 1  # Fallback to avoid ValueError
 
-		# sample negative indices
 		sampled_negative_indices = _sample_negative_indices(
 			features_shape,
 			self.model.config.num_negatives,
@@ -202,7 +207,7 @@ training_args = TrainingArguments(
 		eval_strategy='steps',
 		eval_steps=100,
 
-		learning_rate=1e-4,
+		learning_rate=5e-5,
 		weight_decay=0.005,
 		warmup_ratio=0.1,
 		
