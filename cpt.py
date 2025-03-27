@@ -126,7 +126,7 @@ class DataCollatorForPretraining:
 
 		return batch
       
-pt_data_collator = DataCollatorForPretraining()
+pt_data_collator = DataCollatorForPretraining(model=pt_model, feature_extractor=pt_feature_extractor)
      
 class CustomTrainer(Trainer):
 	def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval"):
