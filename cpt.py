@@ -272,20 +272,6 @@ def remove_special_characters(batch):
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
 
-# def show_random_elements(dataset, num_examples=10):
-#     assert num_examples <= len(dataset), "Can't pick more elements than there are in the dataset."
-#     picks = []
-#     for _ in range(num_examples):
-#         pick = random.randint(0, len(dataset)-1)
-#         while pick in picks:
-#             pick = random.randint(0, len(dataset)-1)
-#         picks.append(pick)
-    
-#     df = pd.DataFrame(dataset[picks])
-#     print(df)
-
-# show_random_elements(mal_data_train.remove_columns(["path", "segment", "variant"]))
-# show_random_elements(mal_data_train.remove_columns(["path","audio", "segment", "variant"]))
 
 def extract_all_chars(batch):
   all_text = " ".join(batch["sentence"])
@@ -402,8 +388,9 @@ def compute_metrics(pred):
 
     return {"cer": cer}
 
+
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res", 
+    "./wav2vec2-pretraining-res/checkpoint-1990",  # Path to your pretrained model directory
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
@@ -411,7 +398,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     layerdrop=0.0,
     ctc_loss_reduction="mean", 
     pad_token_id=processor.tokenizer.pad_token_id,
-    vocab_size=len(processor.tokenizer),
+    vocab_size=len(processor.tokenizer),  # Ensure vocabulary size matches your new tokenizer
 )
 
 model.freeze_feature_extractor()
