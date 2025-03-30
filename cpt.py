@@ -117,9 +117,8 @@ class DataCollatorForPretraining:
 			self.model.config.mask_time_length,
 			attention_mask=sub_attention_mask,
 		)
-		high = features_shape[1] - 1  # Ensure high is at least 1
-		if high <= 0:
-			high = 1  # Fallback to avoid ValueError
+        
+		features_shape = (features_shape[0], max(1, features_shape[1])) 
 
 		sampled_negative_indices = _sample_negative_indices(
 			features_shape,
