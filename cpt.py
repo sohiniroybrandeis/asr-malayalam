@@ -120,13 +120,16 @@ class DataCollatorForPretraining:
         
 		features_shape = (features_shape[0], max(1, features_shape[1])) 
 
-		sampled_negative_indices = _sample_negative_indices(
-			features_shape,
-			self.model.config.num_negatives,
-			mask_time_indices=mask_time_indices,
-		)
+		# sampled_negative_indices = _sample_negative_indices(
+		# 	features_shape,
+		# 	self.model.config.num_negatives,
+		# 	mask_time_indices=mask_time_indices,
+		# )
 
 		batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
+		sampled_negative_indices = torch.zeros(features_shape, dtype=torch.long, device=device)
+        
+		batch["sampled_negative_indices"] = sampled_negative_indices
 		# batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
 
 		return batch
