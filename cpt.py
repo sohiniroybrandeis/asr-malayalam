@@ -50,23 +50,24 @@ def get_input_values(batch):
 
 # applying get_input_values function to all the examples 
 pt_mal_train = pt_mal_train.map(
-		get_input_values,
-		remove_columns=pt_mal_train.column_names,
-	)
+    get_input_values,
+    remove_columns=pt_mal_train.column_names,
+    num_proc=4,  # Use multiple CPU cores
+)
 
-def get_seq_indices_not_too_short(dataset, min_length):
-	"""Returns the list of indices of sequences that are 'good'
-	meaning longer than min length."""
-	good_indices = []
-	all_input_lengths = dataset['input_length']
-	for i in range(len(dataset)):
-		if all_input_lengths[i][0] > min_length:
-			good_indices.append(i)
-	return good_indices
+# def get_seq_indices_not_too_short(dataset, min_length):
+# 	"""Returns the list of indices of sequences that are 'good'
+# 	meaning longer than min length."""
+# 	good_indices = []
+# 	all_input_lengths = dataset['input_length']
+# 	for i in range(len(dataset)):
+# 		if all_input_lengths[i][0] > min_length:
+# 			good_indices.append(i)
+# 	return good_indices
 
 # retaining the examples having lengths greater than 5 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
-pt_mal_train = pt_mal_train.select(good_indices)
+# good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
+# pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (95% train, 9% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
@@ -228,9 +229,9 @@ pt_trainer = CustomTrainer(
     eval_dataset=pt_test,
     tokenizer=pt_feature_extractor,
 )
-# print(f"Starting training...!")
+print(f"Starting training...!")
 # torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -296,7 +297,6 @@ with open('vocab.json', 'w') as vocab_file:
 
 tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
 repo_name = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results"
-# print(tokenizer.tokenize("മലയാളം ഒരു മനോഹരമായ ഭാഷയാണ്"))
 tokenizer.save_pretrained(repo_name)
 
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=True)
