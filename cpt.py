@@ -391,7 +391,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res/checkpoint-1990",  # Path to your pretrained model directory
+    "./wav2vec2-pretraining-res/checkpoint-9070",  # Path to your pretrained model directory
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
