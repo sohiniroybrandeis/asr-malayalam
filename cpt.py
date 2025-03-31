@@ -69,7 +69,7 @@ def get_seq_indices_not_too_short(dataset, min_length):
 good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
 pt_mal_train = pt_mal_train.select(good_indices)
 
-# Split the dataset into training and test sets (95% train, 9% test)
+# Split the dataset into training and test sets (95% train, 5% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 
 # Extract the training and test sets
@@ -117,8 +117,6 @@ class DataCollatorForPretraining:
 			self.model.config.mask_time_length,
 			attention_mask=sub_attention_mask,
 		)
-        
-		features_shape = (features_shape[0], max(1, features_shape[1])) 
 
 		sampled_negative_indices = _sample_negative_indices(
 			features_shape,
