@@ -233,11 +233,10 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 # torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
-# Load the Malayalam subset of Common Voice
 mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation", trust_remote_code=True)
 mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test", trust_remote_code=True)
 
@@ -392,7 +391,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "./wav2vec2-pretraining-res/checkpoint-1990",  # Path to your pretrained model directory
+    "wav2vec2-pretraining-res/checkpoint-1990",  # Path to your pretrained model directory
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
