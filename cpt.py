@@ -55,19 +55,19 @@ pt_mal_train = pt_mal_train.map(
     num_proc=4,  # Use multiple CPU cores
 )
 
-# def get_seq_indices_not_too_short(dataset, min_length):
-# 	"""Returns the list of indices of sequences that are 'good'
-# 	meaning longer than min length."""
-# 	good_indices = []
-# 	all_input_lengths = dataset['input_length']
-# 	for i in range(len(dataset)):
-# 		if all_input_lengths[i][0] > min_length:
-# 			good_indices.append(i)
-# 	return good_indices
+def get_seq_indices_not_too_short(dataset, min_length):
+	"""Returns the list of indices of sequences that are 'good'
+	meaning longer than min length."""
+	good_indices = []
+	all_input_lengths = dataset['input_length']
+	for i in range(len(dataset)):
+		if all_input_lengths[i][0] > min_length:
+			good_indices.append(i)
+	return good_indices
 
-# # retaining the examples having lengths greater than 2 sec
-# good_indices = get_seq_indices_not_too_short(pt_mal_train, 2)
-# pt_mal_train = pt_mal_train.select(good_indices)
+# retaining the examples having lengths greater than 3 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
+pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (95% train, 9% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
@@ -120,17 +120,17 @@ class DataCollatorForPretraining:
         
 		features_shape = (features_shape[0], max(1, features_shape[1])) 
 
-		# sampled_negative_indices = _sample_negative_indices(
-		# 	features_shape,
-		# 	self.model.config.num_negatives,
-		# 	mask_time_indices=mask_time_indices,
-		# )
+		sampled_negative_indices = _sample_negative_indices(
+			features_shape,
+			self.model.config.num_negatives,
+			mask_time_indices=mask_time_indices,
+		)
 
-		batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
-		sampled_negative_indices = torch.zeros(features_shape, dtype=torch.long, device=device)
+		# batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
+		# sampled_negative_indices = torch.zeros(features_shape, dtype=torch.long, device=device)
         
-		batch["sampled_negative_indices"] = sampled_negative_indices
-		# batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
+		# batch["sampled_negative_indices"] = sampled_negative_indices
+		batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
 
 		return batch
       
