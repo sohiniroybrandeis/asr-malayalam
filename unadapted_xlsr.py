@@ -245,7 +245,7 @@ logits = model(input_dict.input_values.to("cuda")).logits
 
 pred_ids = torch.argmax(logits, dim=-1)[0]
 
-mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_14_0", "ml", split="test")
+mal_data_test_transcription = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test")
 
 print("Prediction:")
 print(processor.decode(pred_ids))
