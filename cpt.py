@@ -214,7 +214,7 @@ training_args = TrainingArguments(
 		metric_for_best_model="loss",
 		# prediction_loss_only=True,
 		greater_is_better=False,
-		push_to_hub=True,
+		push_to_hub=False,
 		)
 
 pt_trainer = CustomTrainer(
