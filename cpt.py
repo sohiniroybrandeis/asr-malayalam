@@ -30,9 +30,9 @@ pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
-sampling_rate = pt_feature_extractor.sampling_rate
-pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
-# pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
+# sampling_rate = pt_feature_extractor.sampling_rate
+# pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
+pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
 
 def get_input_values(batch):
 	"""Normalizes input arrays using feature extractor."""
