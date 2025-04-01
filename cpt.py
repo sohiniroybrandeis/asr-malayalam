@@ -226,6 +226,7 @@ pt_trainer = CustomTrainer(
     tokenizer=pt_feature_extractor,
 )
 print(f"Starting training...!")
+torch.cuda.empty_cache()
 pt_trainer.train()
 
 ###FINE-TUNING CODE
