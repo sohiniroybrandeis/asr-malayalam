@@ -17,7 +17,7 @@ pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         "facebook/wav2vec2-xls-r-300m",
         cache_dir="./cache/"
     )
-
+      
 pt_wav2vec_config = Wav2Vec2Config.from_pretrained("facebook/wav2vec2-xls-r-300m")
 
 # saving config to JSON file
@@ -30,7 +30,9 @@ pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
-pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
+sampling_rate = pt_feature_extractor.sampling_rate
+pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
+# pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
 
 def get_input_values(batch):
 	"""Normalizes input arrays using feature extractor."""
@@ -49,9 +51,9 @@ def get_input_values(batch):
 
 # applying get_input_values function to all the examples 
 pt_mal_train = pt_mal_train.map(
-    get_input_values,
-    remove_columns=pt_mal_train.column_names
-)
+		get_input_values,
+		remove_columns=pt_mal_train.column_names,
+	)
 
 def get_seq_indices_not_too_short(dataset, min_length):
 	"""Returns the list of indices of sequences that are 'good'
@@ -63,11 +65,11 @@ def get_seq_indices_not_too_short(dataset, min_length):
 			good_indices.append(i)
 	return good_indices
 
-# retaining the examples having lengths greater than 5 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
-pt_mal_train = pt_mal_train.select(good_indices)
+# retaining the examples having lengths greater than 2 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 2)
+dataset = pt_mal_train.select(good_indices)
 
-# Split the dataset into training and test sets (95% train, 5% test)
+# Split the dataset into training and test sets (80% train, 20% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 
 # Extract the training and test sets
@@ -114,6 +116,7 @@ class DataCollatorForPretraining:
 			attention_mask=sub_attention_mask,
 		)
 
+		# sample negative indices
 		sampled_negative_indices = _sample_negative_indices(
 			features_shape,
 			self.model.config.num_negatives,
@@ -121,7 +124,6 @@ class DataCollatorForPretraining:
 		)
 
 		batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
-
 		batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
 
 		return batch
@@ -186,10 +188,10 @@ training_args = TrainingArguments(
 		output_dir='wav2vec2-pretraining-res',
 		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
-		gradient_accumulation_steps=4,
-		per_device_eval_batch_size=2,
+		gradient_accumulation_steps=1,
+		per_device_eval_batch_size=8,
 		num_train_epochs=10,
-		per_device_train_batch_size=2,
+		per_device_train_batch_size=8,
 		
 		# logging...
 		logging_strategy='steps',
@@ -212,7 +214,7 @@ training_args = TrainingArguments(
 		metric_for_best_model="loss",
 		# prediction_loss_only=True,
 		greater_is_better=False,
-		push_to_hub=False,
+		push_to_hub=True,
 		)
 
 pt_trainer = CustomTrainer(
@@ -224,13 +226,13 @@ pt_trainer = CustomTrainer(
     tokenizer=pt_feature_extractor,
 )
 print(f"Starting training...!")
-torch.cuda.empty_cache()
 pt_trainer.train()
 
 ###FINE-TUNING CODE
 
-mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation", trust_remote_code=True)
-mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test", trust_remote_code=True)
+# Load the Malayalam subset of Common Voice
+mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation")
+mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -244,13 +246,10 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data_train:
-    # total_duration += sample["duration"]
     if total_duration + sample["duration"] > 3600:
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
-
-# print(total_duration)
 
 mal_data_train = Dataset.from_list(selected_samples)
 
@@ -294,7 +293,6 @@ tokenizer.save_pretrained(repo_name)
 
 feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=True)
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
-
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
 mal_data_test = mal_data_test.cast_column("audio", Audio(sampling_rate=16_000))
@@ -381,9 +379,8 @@ def compute_metrics(pred):
 
     return {"cer": cer}
 
-
 model = Wav2Vec2ForCTC.from_pretrained(
-    "./wav2vec2-pretraining-res/checkpoint-9070",  # Path to your pretrained model directory
+    "wav2vec2-pretraining-res", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
@@ -391,7 +388,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     layerdrop=0.0,
     ctc_loss_reduction="mean", 
     pad_token_id=processor.tokenizer.pad_token_id,
-    vocab_size=len(processor.tokenizer),  # Ensure vocabulary size matches your new tokenizer
+    vocab_size=len(processor.tokenizer),
 )
 
 model.freeze_feature_extractor()
