@@ -39,7 +39,8 @@ def get_input_values(batch):
 	sample = batch['audio']	
 	batch["input_values"] = pt_feature_extractor(
 		sample['array'], sampling_rate=sample['sampling_rate'],
-		return_tensors='np'
+		return_tensors='np',
+        return_attention_mask=True
 		).input_values[0]
 	
 	# saving input_length for each sequence, might not be needed for this task.
@@ -65,8 +66,8 @@ def get_seq_indices_not_too_short(dataset, min_length):
 			good_indices.append(i)
 	return good_indices
 
-# retaining the examples having lengths greater than 3 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
+# retaining the examples having lengths greater than 5 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
 dataset = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (80% train, 20% test)
