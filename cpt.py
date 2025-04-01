@@ -37,8 +37,7 @@ def get_input_values(batch):
 	sample = batch['audio']	
 	batch["input_values"] = pt_feature_extractor(
 		sample['array'], sampling_rate=sample['sampling_rate'],
-		return_tensors='np',
-		return_attention_mask=True
+		return_tensors='np'
 		).input_values[0]
 	
 	# saving input_length for each sequence, might not be needed for this task.
@@ -51,8 +50,7 @@ def get_input_values(batch):
 # applying get_input_values function to all the examples 
 pt_mal_train = pt_mal_train.map(
     get_input_values,
-    remove_columns=pt_mal_train.column_names,
-    num_proc=4,  # Use multiple CPU cores
+    remove_columns=pt_mal_train.column_names
 )
 
 def get_seq_indices_not_too_short(dataset, min_length):
@@ -73,7 +71,7 @@ pt_mal_train = pt_mal_train.select(good_indices)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 
 # Extract the training and test sets
-pt_train= train_test_split['train']
+pt_train = train_test_split['train']
 pt_test = train_test_split['test']
 
 @dataclass
@@ -105,8 +103,6 @@ class DataCollatorForPretraining:
 			sub_attention_mask = self.model._get_feature_vector_attention_mask(
 				seq_len, batch["attention_mask"]
 			)
-		else:
-			sub_attention_mask = None  # Ensure no error occurs
 
 		features_shape = (batch_size, seq_len)
 
@@ -206,7 +202,7 @@ training_args = TrainingArguments(
 		eval_strategy='steps',
 		eval_steps=100,
 
-		learning_rate=5e-5,
+		learning_rate=1e-4,
 		weight_decay=0.005,
 		warmup_ratio=0.1,
 		
@@ -228,7 +224,7 @@ pt_trainer = CustomTrainer(
     tokenizer=pt_feature_extractor,
 )
 print(f"Starting training...!")
-# torch.cuda.empty_cache()
+torch.cuda.empty_cache()
 pt_trainer.train()
 
 ###FINE-TUNING CODE
