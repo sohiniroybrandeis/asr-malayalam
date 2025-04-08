@@ -30,9 +30,10 @@ pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
-# sampling_rate = pt_feature_extractor.sampling_rate
-# pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
-pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
+sampling_rate = pt_feature_extractor.sampling_rate
+print("Sampling rate", sampling_rate)
+pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
+# pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
 
 def get_input_values(batch):
 	"""Normalizes input arrays using feature extractor."""
@@ -45,6 +46,7 @@ def get_input_values(batch):
 	
 	# saving input_length for each sequence, might not be needed for this task.
 	batch["input_length"] = [batch["input_values"].shape[0]/sample['sampling_rate']]
+	print("Input range:", batch["input_values"].min(), batch["input_values"].max())
 
 	# manually calling garbage collector to dispose off unallocated memory.
 	gc.collect()
@@ -127,6 +129,8 @@ class DataCollatorForPretraining:
 
 		batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
 		batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
+
+		print("Masked indices sum:", mask_time_indices.sum())
 
 		return batch
       
@@ -229,7 +233,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
