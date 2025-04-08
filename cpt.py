@@ -33,22 +33,61 @@ pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
+# def get_input_values(batch): #original
+# 	"""Normalizes input arrays using feature extractor."""
+# 	sample = batch['audio']	
+# 	batch["input_values"] = pt_feature_extractor(
+# 		sample['array'], sampling_rate=sample['sampling_rate'],
+# 		return_tensors='np'
+#         # return_attention_mask=True
+# 		).input_values[0]
+	
+# 	# saving input_length for each sequence, might not be needed for this task.
+# 	batch["input_length"] = [batch["input_values"].shape[0]/sample['sampling_rate']]
+# 	print("Input range:", batch["input_values"].min(), batch["input_values"].max())
+
+# 	# manually calling garbage collector to dispose off unallocated memory.
+# 	gc.collect()
+# 	return batch
+
 def get_input_values(batch):
+	"""Normalizes input arrays using feature extractor."""
 	sample = batch['audio']
 	waveform = sample['array']
 	
-	# Normalize to [-1.0, 1.0]
-	waveform = waveform / np.abs(waveform).max()
+	# Check the range before passing to feature extractor
+	print("Waveform range (before extractor):", waveform.min(), waveform.max())
 
+	# Apply feature extractor to the waveform
 	batch["input_values"] = pt_feature_extractor(
-		waveform, sampling_rate=sample['sampling_rate'], return_tensors='np'
+		waveform, sampling_rate=sample['sampling_rate'],
+		return_tensors='np'
 	).input_values[0]
-
+	
+	# Saving input length for each sequence (not needed for task here)
 	batch["input_length"] = [batch["input_values"].shape[0] / sample['sampling_rate']]
-	print("Input range (normalized):", batch["input_values"].min(), batch["input_values"].max())
 
+	# Manually calling garbage collector to dispose off unallocated memory
 	gc.collect()
+
 	return batch
+
+# def get_input_values(batch):
+# 	sample = batch['audio']
+# 	waveform = sample['array']
+	
+# 	# Normalize to [-1.0, 1.0]
+# 	waveform = waveform / np.abs(waveform).max()
+
+# 	batch["input_values"] = pt_feature_extractor(
+# 		waveform, sampling_rate=sample['sampling_rate'], return_tensors='np'
+# 	).input_values[0]
+
+# 	batch["input_length"] = [batch["input_values"].shape[0] / sample['sampling_rate']]
+# 	print("Input range (normalized):", batch["input_values"].min(), batch["input_values"].max())
+
+# 	gc.collect()
+# 	return batch
 
 # applying get_input_values function to all the examples 
 pt_mal_train = pt_mal_train.map(
@@ -231,7 +270,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
