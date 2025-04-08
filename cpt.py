@@ -31,24 +31,22 @@ pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split=
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
 sampling_rate = pt_feature_extractor.sampling_rate
-print("Sampling rate", sampling_rate)
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
-# pt_mal_train = pt_mal_train.cast_column("audio", Audio(sampling_rate=16_000))
 
 def get_input_values(batch):
-	"""Normalizes input arrays using feature extractor."""
-	sample = batch['audio']	
-	batch["input_values"] = pt_feature_extractor(
-		sample['array'], sampling_rate=sample['sampling_rate'],
-		return_tensors='np'
-        # return_attention_mask=True
-		).input_values[0]
+	sample = batch['audio']
+	waveform = sample['array']
 	
-	# saving input_length for each sequence, might not be needed for this task.
-	batch["input_length"] = [batch["input_values"].shape[0]/sample['sampling_rate']]
-	print("Input range:", batch["input_values"].min(), batch["input_values"].max())
+	# Normalize to [-1.0, 1.0]
+	waveform = waveform / np.abs(waveform).max()
 
-	# manually calling garbage collector to dispose off unallocated memory.
+	batch["input_values"] = pt_feature_extractor(
+		waveform, sampling_rate=sample['sampling_rate'], return_tensors='np'
+	).input_values[0]
+
+	batch["input_length"] = [batch["input_values"].shape[0] / sample['sampling_rate']]
+	print("Input range (normalized):", batch["input_values"].min(), batch["input_values"].max())
+
 	gc.collect()
 	return batch
 
@@ -233,7 +231,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
