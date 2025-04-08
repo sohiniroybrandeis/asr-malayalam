@@ -382,7 +382,7 @@ def compute_metrics(pred):
     return {"cer": cer}
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res", 
+    "wav2vec2-pretraining-res/checkpoint-9070", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
