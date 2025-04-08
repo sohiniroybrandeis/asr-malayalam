@@ -191,9 +191,9 @@ training_args = TrainingArguments(
 		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
 		gradient_accumulation_steps=1,
-		per_device_eval_batch_size=8,
+		per_device_eval_batch_size=4,
 		num_train_epochs=10,
-		per_device_train_batch_size=8,
+		per_device_train_batch_size=4,
 		
 		# logging...
 		logging_strategy='steps',
