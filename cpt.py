@@ -68,7 +68,7 @@ def get_seq_indices_not_too_short(dataset, min_length):
 
 # retaining the examples having lengths greater than 5 sec
 good_indices = get_seq_indices_not_too_short(pt_mal_train, 5)
-dataset = pt_mal_train.select(good_indices)
+pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (80% train, 20% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
