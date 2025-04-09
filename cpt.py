@@ -228,7 +228,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -293,7 +293,7 @@ tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_to
 repo_name = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-9070")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-12850")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
@@ -382,7 +382,7 @@ def compute_metrics(pred):
     return {"cer": cer}
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res/checkpoint-9070", 
+    "wav2vec2-pretraining-res/checkpoint-12850", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
