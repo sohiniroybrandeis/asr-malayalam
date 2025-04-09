@@ -393,7 +393,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer),
 )
 
-model.freeze_feature_extractor()
+# model.freeze_feature_extractor()
 
 training_args = TrainingArguments(
   output_dir=repo_name,
