@@ -27,8 +27,17 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
+pt_model.freeze_feature_encoder()
+
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
+
+total_duration = 0.0
+
+for sample in pt_mal_train:
+    total_duration += sample["duration"]
+
+print("Total audio:", total_duration)
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -66,8 +75,8 @@ def get_seq_indices_not_too_short(dataset, min_length):
 			good_indices.append(i)
 	return good_indices
 
-# retaining the examples having lengths greater than 2 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 2)
+# retaining the examples having lengths greater than 3 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
 pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (95% train, 5% test)
@@ -228,7 +237,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -393,7 +402,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer),
 )
 
-# model.freeze_feature_extractor()
+model.freeze_feature_extractor()
 
 training_args = TrainingArguments(
   output_dir=repo_name,
