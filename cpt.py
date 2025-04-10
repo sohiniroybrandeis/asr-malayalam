@@ -66,8 +66,8 @@ def get_seq_indices_not_too_short(dataset, min_length):
 			good_indices.append(i)
 	return good_indices
 
-# retaining the examples having lengths greater than 2.75 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 2.75)
+# retaining the examples having lengths greater than 2 sec
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 2)
 pt_mal_train = pt_mal_train.select(good_indices)
 
 # Split the dataset into training and test sets (95% train, 5% test)
@@ -228,7 +228,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -382,7 +382,7 @@ def compute_metrics(pred):
     return {"cer": cer}
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res/checkpoint-12850", 
+    "wav2vec2-pretraining-res/checkpoint-14550", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
