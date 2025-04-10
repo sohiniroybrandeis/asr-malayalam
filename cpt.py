@@ -32,6 +32,13 @@ pt_model.freeze_feature_encoder()
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
+
+# Compute durations
+pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
+
 total_duration = 0.0
 
 for sample in pt_mal_train:
