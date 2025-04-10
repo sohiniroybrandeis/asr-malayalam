@@ -293,7 +293,7 @@ tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_to
 repo_name = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-12850")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-14550")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
