@@ -27,8 +27,6 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-# pt_model.freeze_feature_encoder()
-
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
@@ -244,7 +242,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -409,7 +407,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer),
 )
 
-# model.freeze_feature_extractor()
+model.freeze_feature_extractor()
 
 training_args = TrainingArguments(
   output_dir=repo_name,
