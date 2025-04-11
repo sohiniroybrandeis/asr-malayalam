@@ -30,20 +30,6 @@ pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
 pt_mal_train = pt_mal_train.remove_columns(["sentence"])
 
-def compute_durations(batch):
-    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-    return batch
-
-# Compute durations
-pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
-
-total_duration = 0.0
-
-for sample in pt_mal_train:
-    total_duration += sample["duration"]
-
-print("Total audio:", total_duration)
-
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
@@ -242,7 +228,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -307,7 +293,7 @@ tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_to
 repo_name = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-14550")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("wav2vec2-pretraining-res/checkpoint-12850")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
@@ -396,7 +382,7 @@ def compute_metrics(pred):
     return {"cer": cer}
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "wav2vec2-pretraining-res/checkpoint-14550", 
+    "wav2vec2-pretraining-res/checkpoint-12850", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
@@ -407,7 +393,7 @@ model = Wav2Vec2ForCTC.from_pretrained(
     vocab_size=len(processor.tokenizer),
 )
 
-model.freeze_feature_extractor()
+# model.freeze_feature_extractor()
 
 training_args = TrainingArguments(
   output_dir=repo_name,
