@@ -15,4 +15,4 @@
 #SBATCH --partition=regular
 
 hostname
-python3 new_audio.py
+python3 cpt.py
