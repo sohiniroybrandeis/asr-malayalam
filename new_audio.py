@@ -1,32 +1,25 @@
 import os
 import random
-from pydub import AudioSegment
 import torchaudio
 from datasets import Dataset, Audio
 
-AUDIO_DIR = "kb_data_clean_m4a/malayalam/valid/audio"          # Folder with .m4a files
-WAV_OUTPUT_DIR = "kb_data_clean_m4a/malayalam/valid/wav_audio"        # Folder to store .wav files
-os.makedirs(WAV_OUTPUT_DIR, exist_ok=True)
+AUDIO_DIR = "archive"  # Root folder containing speaker subfolders
 
-# Step 1: Convert .m4a to .wav
-converted_files = []
-for filename in os.listdir(AUDIO_DIR):
-    if filename.endswith(".m4a"):
-        m4a_path = os.path.join(AUDIO_DIR, filename)
-        wav_filename = os.path.splitext(filename)[0] + ".wav"
-        wav_path = os.path.join(WAV_OUTPUT_DIR, wav_filename)
+# Step 1: Collect all .wav files from speaker subfolders
+all_files = []
+for root, dirs, files in os.walk(AUDIO_DIR):
+    for file in files:
+        if file.endswith(".wav"):
+            full_path = os.path.join(root, file)
+            all_files.append(full_path)
 
-        if not os.path.exists(wav_path):  # Avoid reconverting
-            audio = AudioSegment.from_file(m4a_path, format="m4a")
-            audio.export(wav_path, format="wav")
-
-        converted_files.append(wav_path)
+print(f"Found {len(all_files)} wav files")
 
 # Step 2: Compute durations
-random.shuffle(converted_files)
+random.shuffle(all_files)
 durations = []
 
-for file in converted_files:
+for file in all_files:
     info = torchaudio.info(file)
     duration = info.num_frames / info.sample_rate
     durations.append((file, duration))
@@ -53,4 +46,5 @@ data = {
 dataset = Dataset.from_dict(data)
 dataset = dataset.cast_column("audio", Audio())
 
+# Step 5: Save to disk
 dataset.save_to_disk("cptmal_audio_dataset")
