@@ -11,6 +11,7 @@ from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCToke
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
+from datasets import load_from_disk
 
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
@@ -27,8 +28,12 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
-pt_mal_train = pt_mal_train.remove_columns(["sentence"])
+# pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
+# pt_mal_train = pt_mal_train.remove_columns(["sentence"])
+
+pt_mal_train = load_from_disk("cptmal_audio_dataset")
+
+print(pt_mal_train[:3])
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
