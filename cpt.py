@@ -28,12 +28,7 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-# pt_mal_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation+other", trust_remote_code=True)
-# pt_mal_train = pt_mal_train.remove_columns(["sentence"])
-
 pt_mal_train = load_from_disk("cptmal_audio_dataset")
-
-print(pt_mal_train[:3])
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -237,9 +232,15 @@ torch.cuda.empty_cache()
 
 ###FINE-TUNING CODE
 
-# Load the Malayalam subset of Common Voice
-mal_data_train = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="train+validation")
-mal_data_test = load_dataset("mozilla-foundation/common_voice_17_0", "ml", split="test")
+# Load the Malayalam data
+mal_data = load_from_disk("cptmal_audio_dataset")
+
+# Split the dataset into training and test sets (80% train, 20% test)
+mal_data_split = pt_mal_train.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+
+# Extract the training and test sets
+mal_data_train = mal_data_split['train']
+mal_data_test = mal_data_split['test']
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
