@@ -264,7 +264,8 @@ mal_data_train = Dataset.from_list(selected_samples)
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
-    batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
+    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
+    batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
 mal_data_train = mal_data_train.map(remove_special_characters)
@@ -272,7 +273,8 @@ mal_data_test = mal_data_test.map(remove_special_characters)
 
 
 def extract_all_chars(batch):
-  all_text = " ".join(batch["sentence"])
+#   all_text = " ".join(batch["sentence"])
+  all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
 
@@ -311,7 +313,8 @@ def prepare_dataset(batch):
     batch["input_length"] = len(batch["input_values"])
     
     with processor.as_target_processor():
-        batch["labels"] = processor(batch["sentence"]).input_ids
+        # batch["labels"] = processor(batch["sentence"]).input_ids
+        batch["labels"] = processor(batch["transcription"]).input_ids
     return batch
 
 mal_data_train = mal_data_train.map(prepare_dataset, remove_columns=mal_data_train.column_names)
@@ -443,7 +446,8 @@ print("Prediction:")
 print(processor.decode(pred_ids))
 
 print("\nReference:")
-print(mal_data_test_transcription[0]["sentence"].lower())
+# print(mal_data_test_transcription[0]["sentence"].lower())
+print(mal_data_test_transcription[0]["transcription"].lower())
 
 def map_to_result(batch):
   with torch.no_grad():
