@@ -28,7 +28,7 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-pt_mal_train = load_from_disk("cptmal_audio_dataset")
+pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -228,7 +228,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -427,7 +427,7 @@ trainer = Trainer(
     tokenizer=processor 
 )
 
-# trainer.train()
+trainer.train()
 
 
 model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-840").to("cuda")
