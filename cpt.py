@@ -233,7 +233,7 @@ torch.cuda.empty_cache()
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
 # Split the dataset into training and test sets (80% train, 20% test)
 mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
@@ -260,9 +260,6 @@ for sample in mal_data_train:
     total_duration += sample["duration"]
 
 mal_data_train = Dataset.from_list(selected_samples)
-
-mal_data_train = mal_data_train.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
-mal_data_test = mal_data_test.remove_columns(['client_id', 'up_votes', 'down_votes', 'age', 'gender', 'accent', 'locale'])
 
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
