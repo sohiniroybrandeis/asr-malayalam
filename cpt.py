@@ -236,7 +236,7 @@ torch.cuda.empty_cache()
 mal_data = load_from_disk("cptmal_audio_dataset")
 
 # Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = pt_mal_train.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
 
 # Extract the training and test sets
 mal_data_train = mal_data_split['train']
