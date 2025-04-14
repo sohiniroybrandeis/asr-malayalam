@@ -293,9 +293,6 @@ vocab_dict["[PAD]"] = len(vocab_dict)
 
 with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
-    
-print("Vocab dict", vocab_dict)
-print("Checking initial data", mal_data_train[0]["transcription"])
 
 tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
 repo_name = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results"
@@ -467,12 +464,25 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
-print("Prediction:")
-print(processor.decode(pred_ids))
+sample = mal_data_train[0]
+input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values
 
-print("\nReference:")
-# print(mal_data_test_transcription[0]["sentence"].lower())
-print(mal_data_test_transcription[0]["transcription"].lower())
+with torch.no_grad():
+    logits = model(input_values).logits
+
+pred_ids = torch.argmax(logits, dim=-1)[0].tolist()
+print("Pred token ids:", pred_ids)
+print("Pred decoded:", processor.decode(pred_ids, group_tokens=False))
+
+label_ids = [id for id in sample["labels"] if id != -100]
+print("Label decoded:", processor.decode(label_ids, group_tokens=False))
+
+# print("Prediction:")
+# print(processor.decode(pred_ids))
+
+# print("\nReference:")
+# # print(mal_data_test_transcription[0]["sentence"].lower())
+# print(mal_data_test_transcription[0]["transcription"].lower())
 
 def map_to_result(batch):
   with torch.no_grad():
