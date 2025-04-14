@@ -465,6 +465,12 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 mal_data_test_transcription = mal_data_split['test']
 
 sample = mal_data_split["train"]
+
+print("Sample type:", type(sample))
+print("Sample keys (if dict):", sample.keys() if isinstance(sample, dict) else "Not a dict")
+print("Sample['audio'] type:", type(sample["audio"]))
+print("Sample['audio']:", sample["audio"])
+
 input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values
 
 with torch.no_grad():
