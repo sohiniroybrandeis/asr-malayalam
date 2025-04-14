@@ -451,12 +451,12 @@ trainer = Trainer(
     tokenizer=processor 
 )
 
-trainer.train()
+# trainer.train()
 
 
-model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-840").to("cuda")
+model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-1950").to("cuda")
 
-processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-840")
+processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-1950")
 
 input_dict = processor(mal_data_test[0]["input_values"], return_tensors="pt", padding=True)
 
