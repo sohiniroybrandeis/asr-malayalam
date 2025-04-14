@@ -464,7 +464,7 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
-sample = mal_data_split["train"]
+sample = mal_data_split["train"][0]
 
 print("Sample type:", type(sample))
 print("Sample keys (if dict):", sample.keys() if isinstance(sample, dict) else "Not a dict")
