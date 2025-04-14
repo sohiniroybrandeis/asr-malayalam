@@ -464,7 +464,7 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
-sample = mal_data_train[0]
+sample = mal_data_split["train"]
 input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values
 
 with torch.no_grad():
