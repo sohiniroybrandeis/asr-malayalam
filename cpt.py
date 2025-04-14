@@ -466,12 +466,7 @@ mal_data_test_transcription = mal_data_split['test']
 
 sample = mal_data_split["train"][0]
 
-print("Sample type:", type(sample))
-print("Sample keys (if dict):", sample.keys() if isinstance(sample, dict) else "Not a dict")
-print("Sample['audio'] type:", type(sample["audio"]))
-print("Sample['audio']:", sample["audio"])
-
-input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values
+input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values.to(model.device)
 
 with torch.no_grad():
     logits = model(input_values).logits
