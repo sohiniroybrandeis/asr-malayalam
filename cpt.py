@@ -28,7 +28,8 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
+# pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
+pt_mal_train = load_from_disk("cptmal_IS_audio_dataset")
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -228,12 +229,13 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
+# mal_data = load_from_disk("cptmal_audio_trans_dataset")
+mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -242,12 +244,13 @@ def compute_durations(batch):
 
 # Compute durations
 mal_data = mal_data.map(compute_durations, batched=True)
+mal_data = mal_data.sort("duration")
 
 selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 3): #three hours
+    if total_duration + sample["duration"] > (3600): #one hours (used to be three)
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
