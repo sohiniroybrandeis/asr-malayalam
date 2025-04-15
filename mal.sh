@@ -15,4 +15,4 @@
 #SBATCH --partition=regular
 
 hostname
-python3 unadapted_xlsr.py
+python3 cpt.py
