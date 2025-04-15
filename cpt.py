@@ -116,26 +116,6 @@ train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 pt_train = train_test_split['train']
 pt_test = train_test_split['test']
 
-# Function to compute duration of each audio sample
-def compute_durations(batch):
-    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-    return batch
-
-# Compute durations
-pt_train = pt_train.map(compute_durations, batched=True)
-
-selected_samples = []
-total_duration = 0.0
-
-for sample in pt_train:
-    if total_duration + sample["duration"] > (3600 * 10): #ten hours
-        break
-    selected_samples.append(sample)
-    total_duration += sample["duration"]
-    
-print("Total duration: ", total_duration)
-
-pt_train = Dataset.from_list(selected_samples)
 
 @dataclass
 class DataCollatorForPretraining:
