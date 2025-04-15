@@ -19,7 +19,25 @@ pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         cache_dir="./cache/"
     )
       
-pt_wav2vec_config = Wav2Vec2Config.from_pretrained("facebook/wav2vec2-xls-r-300m")
+# pt_wav2vec_config = Wav2Vec2Config.from_pretrained("facebook/wav2vec2-xls-r-300m")
+pt_wav2vec_config = Wav2Vec2Config.from_pretrained(
+    "facebook/wav2vec2-xls-r-300m",
+    cache_dir="./cache/",
+    num_negatives=100,
+    contrastive_loss_weight=1.0,
+    diversity_loss_weight=0.1,
+    do_stable_layer_norm=True,
+    feat_extract_norm="layer",
+    feat_proj_dropout=0.0,
+    hidden_dropout=0.1,
+    final_dropout=0.1,
+    layerdrop=0.1,
+    # mask_time_prob=0.05,
+    mask_time_prob=0.025,
+    # mask_time_length=10,
+    mask_time_length=5,
+    gradient_checkpointing=True,
+)
 
 # saving config to JSON file
 config_dict = pt_wav2vec_config.to_dict()
@@ -29,6 +47,27 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
 pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
+
+# Function to compute duration of each audio sample
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
+
+# Compute durations
+pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
+
+selected_samples = []
+total_duration = 0.0
+
+for sample in pt_mal_train:
+    if total_duration + sample["duration"] > (3600 * 12): #twelve hours
+        break
+    selected_samples.append(sample)
+    total_duration += sample["duration"]
+    
+print("Total duration: ", total_duration)
+
+pt_mal_train = Dataset.from_list(selected_samples)
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -76,6 +115,27 @@ train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 # Extract the training and test sets
 pt_train = train_test_split['train']
 pt_test = train_test_split['test']
+
+# Function to compute duration of each audio sample
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
+
+# Compute durations
+pt_train = pt_train.map(compute_durations, batched=True)
+
+selected_samples = []
+total_duration = 0.0
+
+for sample in pt_train:
+    if total_duration + sample["duration"] > (3600 * 10): #ten hours
+        break
+    selected_samples.append(sample)
+    total_duration += sample["duration"]
+    
+print("Total duration: ", total_duration)
+
+pt_train = Dataset.from_list(selected_samples)
 
 @dataclass
 class DataCollatorForPretraining:
@@ -235,25 +295,18 @@ pt_trainer.train()
 # Load the Malayalam data
 mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
-# Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
-
-# Extract the training and test sets
-mal_data_train = mal_data_split['train']
-mal_data_test = mal_data_split['test']
-
 # Function to compute duration of each audio sample
 def compute_durations(batch):
     batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
     return batch
 
 # Compute durations
-mal_data_train = mal_data_train.map(compute_durations, batched=True)
+mal_data = mal_data.map(compute_durations, batched=True)
 
 selected_samples = []
 total_duration = 0.0
 
-for sample in mal_data_train:
+for sample in mal_data:
     if total_duration + sample["duration"] > (3600 * 3): #three hours
         break
     selected_samples.append(sample)
@@ -262,6 +315,13 @@ for sample in mal_data_train:
 print("Total duration: ", total_duration)
 
 mal_data_train = Dataset.from_list(selected_samples)
+
+# Split the dataset into training and test sets (80% train, 20% test)
+mal_data_split = mal_data_train.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+
+# Extract the training and test sets
+mal_data_train = mal_data_split['train']
+mal_data_test = mal_data_split['test']
 
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
@@ -373,22 +433,6 @@ data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
 cer_metric = load("cer")
 
-# def compute_metrics(pred):
-#     pred_logits = pred.predictions
-#     pred_ids = np.argmax(pred_logits, axis=-1)
-
-#     pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
-
-#     pred_str = processor.batch_decode(pred_ids)
-#     # we do not want to group tokens when computing the metrics
-#     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-
-#     label_str = [s.replace(processor.tokenizer.pad_token, '') for s in label_str]  # Remove padding
-
-#     cer = cer_metric.compute(predictions=pred_str, references=label_str)
-
-#     return {"cer": cer}
-
 def compute_metrics(pred):
     pred_logits = pred.predictions
     pred_ids = np.argmax(pred_logits, axis=-1)
@@ -416,7 +460,8 @@ model = Wav2Vec2ForCTC.from_pretrained(
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
-    mask_time_prob=0.05,
+    # mask_time_prob=0.05,
+    mask_time_prob=0.025,
     layerdrop=0.0,
     ctc_loss_reduction="mean", 
     pad_token_id=processor.tokenizer.pad_token_id,
@@ -451,7 +496,7 @@ trainer = Trainer(
     tokenizer=processor 
 )
 
-# trainer.train()
+trainer.train()
 
 
 model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-1950").to("cuda")
@@ -499,8 +544,5 @@ def map_to_result(batch):
   return batch
 
 results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
-
-# print(results["pred_str"])
-# print(results["text"])
 
 print("Test CER: {:.3f}".format(cer_metric.compute(predictions=results["pred_str"], references=results["text"])))
