@@ -260,6 +260,8 @@ pt_mal_train = load_from_disk("cptmal_IS_audio_dataset")
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
+print("About to chunk...")
+
 # CHUNKING FUNCTION
 def chunk_audio(example, max_duration_sec=15):
     array = example['audio']['array']
@@ -279,6 +281,8 @@ flat_audio_list = [audio for sublist in chunked['audio'] for audio in sublist]
 pt_mal_train = Dataset.from_list([{'audio': a} for a in flat_audio_list])
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
+print("Chunked and flattened.")
+
 # Feature extraction
 def get_input_values(batch):
     sample = batch['audio']
@@ -294,6 +298,8 @@ pt_mal_train = pt_mal_train.map(
     get_input_values,
     remove_columns=pt_mal_train.column_names,
 )
+
+print("About to filter...")
 
 # Filtering: remove very short clips
 def get_seq_indices_not_too_short(dataset, min_length):
