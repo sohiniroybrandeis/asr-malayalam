@@ -78,6 +78,7 @@ train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 
 # Extract the training and test sets
 pt_train = train_test_split['train']
+
 pt_test = train_test_split['test']
 
 @dataclass
@@ -233,207 +234,6 @@ print(f"Starting training...!")
 torch.cuda.empty_cache()
 # pt_trainer.train()
 
-# from transformers import Wav2Vec2Config, Wav2Vec2ForPreTraining, Wav2Vec2FeatureExtractor, Trainer, TrainingArguments
-# from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
-# from datasets import load_from_disk, Dataset, Audio
-# import torch
-# import gc
-# import json
-# import math
-# from dataclasses import dataclass
-# from typing import List, Dict, Union
-
-# # Load config and feature extractor
-# pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
-#     "facebook/wav2vec2-xls-r-300m",
-#     cache_dir="./cache/"
-# )
-
-# pt_wav2vec_config = Wav2Vec2Config.from_pretrained("facebook/wav2vec2-xls-r-300m")
-# with open(f"pt_wav2vec2_config.json", "w") as F:
-#     json.dump(pt_wav2vec_config.to_dict(), F, indent=4)
-
-# pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
-
-# # Load dataset
-# pt_mal_train = load_from_disk("cptmal_IS_audio_dataset")
-# sampling_rate = pt_feature_extractor.sampling_rate
-# pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
-
-# print("About to chunk...")
-
-# # CHUNKING FUNCTION
-# def chunk_audio(example, max_duration_sec=15):
-#     array = example['audio']['array']
-#     sampling_rate = example['audio']['sampling_rate']
-#     chunk_size = int(sampling_rate * max_duration_sec)
-#     chunks = []
-
-#     for i in range(0, len(array), chunk_size):
-#         chunk_array = array[i:i+chunk_size]
-#         chunks.append({'array': chunk_array, 'sampling_rate': sampling_rate})
-
-#     return {'audio': chunks}
-
-# # Apply chunking and flatten dataset
-# chunked = pt_mal_train.map(chunk_audio, remove_columns=pt_mal_train.column_names)
-# flat_audio_list = [audio for sublist in chunked['audio'] for audio in sublist]
-# pt_mal_train = Dataset.from_list([{'audio': a} for a in flat_audio_list])
-# pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
-
-# print("Chunked and flattened.")
-
-# # Feature extraction
-# def get_input_values(batch):
-#     sample = batch['audio']
-#     batch["input_values"] = pt_feature_extractor(
-#         sample['array'], sampling_rate=sample['sampling_rate'],
-#         return_tensors='np', return_attention_mask=True
-#     ).input_values[0]
-#     batch["input_length"] = [batch["input_values"].shape[0]/sample['sampling_rate']]
-#     gc.collect()
-#     return batch
-
-# pt_mal_train = pt_mal_train.map(
-#     get_input_values,
-#     remove_columns=pt_mal_train.column_names,
-# )
-
-# print("About to filter...")
-
-# # Filtering: remove very short clips
-# def get_seq_indices_not_too_short(dataset, min_length):
-#     good_indices = []
-#     all_input_lengths = dataset['input_length']
-#     for i in range(len(dataset)):
-#         if all_input_lengths[i][0] > min_length:
-#             good_indices.append(i)
-#     return good_indices
-
-# good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
-# pt_mal_train = pt_mal_train.select(good_indices)
-
-# # Train/test split
-# train_test_split = pt_mal_train.train_test_split(test_size=0.05)
-# pt_train = train_test_split['train']
-# pt_test = train_test_split['test']
-
-# # Data collator
-# @dataclass
-# class DataCollatorForPretraining:
-#     model: Wav2Vec2ForPreTraining
-#     feature_extractor: Wav2Vec2FeatureExtractor
-#     padding: Union[bool, str] = "longest"
-
-#     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-#         input_features = [{"input_values": feature["input_values"]} for feature in features]
-#         batch = self.feature_extractor.pad(input_features, padding=self.padding, return_tensors="pt")
-#         device = batch['input_values'].device
-#         batch_size, input_seq_len = batch['input_values'].shape
-#         seq_len = self.model._get_feat_extract_output_lengths(input_seq_len).item()
-
-#         sub_attention_mask = None
-#         if batch.get("attention_mask") is not None:
-#             sub_attention_mask = self.model._get_feature_vector_attention_mask(seq_len, batch["attention_mask"])
-
-#         features_shape = (batch_size, seq_len)
-#         mask_time_indices = _compute_mask_indices(
-#             features_shape,
-#             self.model.config.mask_time_prob,
-#             self.model.config.mask_time_length,
-#             attention_mask=sub_attention_mask,
-#         )
-
-#         sampled_negative_indices = _sample_negative_indices(
-#             features_shape,
-#             self.model.config.num_negatives,
-#             mask_time_indices=mask_time_indices,
-#         )
-
-#         batch["mask_time_indices"] = torch.tensor(mask_time_indices, dtype=torch.long, device=device)
-#         batch["sampled_negative_indices"] = torch.tensor(sampled_negative_indices, dtype=torch.long, device=device)
-#         return batch
-
-# pt_data_collator = DataCollatorForPretraining(model=pt_model, feature_extractor=pt_feature_extractor)
-
-# # Custom Trainer
-# class CustomTrainer(Trainer):
-#     def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval"):
-#         eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-#         self.model.eval()
-#         output = {}
-
-#         total_loss = 0.0
-#         total_contrastive_loss = 0.0
-#         total_diversity_loss = 0.0
-#         num_batches = 0
-
-#         dataloader = self.get_eval_dataloader(eval_dataset)
-#         for step, batch in enumerate(dataloader):
-#             batch = {k: v.to(self.args.device) for k, v in batch.items()}
-#             with torch.no_grad():
-#                 outputs = self.model(**batch)
-
-#             loss = outputs.get('loss', None)
-#             contrastive_loss = outputs.get('contrastive_loss', None)
-#             diversity_loss = outputs.get('diversity_loss', None)
-#             if loss is not None:
-#                 total_loss += loss.item()
-#                 total_contrastive_loss += contrastive_loss.item()
-#                 total_diversity_loss += diversity_loss.item()
-#                 num_batches += 1
-
-#         avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
-#         avg_contrastive_loss = total_contrastive_loss / num_batches if num_batches > 0 else float('nan')
-#         avg_diversity_loss = total_diversity_loss / num_batches if num_batches > 0 else float('nan')
-
-#         metrics = {
-#             f"{metric_key_prefix}_loss": avg_loss,
-#             f"{metric_key_prefix}_constrast_loss": avg_contrastive_loss,
-#             f"{metric_key_prefix}_div_loss": avg_diversity_loss,
-#         }
-#         self.log(metrics)
-#         return metrics
-
-# # Training arguments
-# training_args = TrainingArguments(
-#     output_dir='wav2vec2-pretraining-res',
-#     gradient_checkpointing=False,
-#     group_by_length=True,
-#     gradient_accumulation_steps=1,
-#     per_device_eval_batch_size=4,
-#     per_device_train_batch_size=4,
-#     num_train_epochs=10,
-#     logging_strategy='steps',
-#     logging_steps=10,
-#     save_strategy='steps',
-#     save_steps=100,
-#     save_total_limit=2,
-#     eval_strategy='steps',
-#     eval_steps=100,
-#     learning_rate=1e-4,
-#     weight_decay=0.005,
-#     warmup_ratio=0.1,
-#     fp16=True,
-#     report_to=["tensorboard"],
-#     load_best_model_at_end=True,
-#     metric_for_best_model="loss",
-#     greater_is_better=False,
-#     push_to_hub=False,
-# )
-
-# pt_trainer = CustomTrainer(
-#     model=pt_model,
-#     data_collator=pt_data_collator,
-#     args=training_args,
-#     train_dataset=pt_train,
-#     eval_dataset=pt_test,
-#     tokenizer=pt_feature_extractor,
-# )
-
-# print("Starting training...")
-# torch.cuda.empty_cache()
-# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -453,7 +253,7 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 1): #one hours (used to be three)
+    if total_duration + sample["duration"] > (3600 * 3): #three hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
@@ -472,7 +272,6 @@ mal_data_test = mal_data_split['test']
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
-    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
@@ -481,7 +280,6 @@ mal_data_test = mal_data_test.map(remove_special_characters)
 
 
 def extract_all_chars(batch):
-#   all_text = " ".join(batch["sentence"])
   all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
@@ -579,22 +377,6 @@ data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
 cer_metric = load("cer")
 
-# def compute_metrics(pred):
-#     pred_logits = pred.predictions
-#     pred_ids = np.argmax(pred_logits, axis=-1)
-
-#     pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
-
-#     pred_str = processor.batch_decode(pred_ids)
-#     # we do not want to group tokens when computing the metrics
-#     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-
-#     label_str = [s.replace(processor.tokenizer.pad_token, '') for s in label_str]  # Remove padding
-
-#     cer = cer_metric.compute(predictions=pred_str, references=label_str)
-
-#     return {"cer": cer}
-
 def compute_metrics(pred):
     pred_logits = pred.predictions
     pred_ids = np.argmax(pred_logits, axis=-1)
@@ -672,25 +454,10 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
-# sample = mal_data_split["train"][0]
-
-# input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values.to(model.device)
-
-# with torch.no_grad():
-#     logits = model(input_values).logits
-
-# pred_ids = torch.argmax(logits, dim=-1)[0].tolist()
-# print("Pred token ids:", pred_ids)
-# print("Pred decoded:", processor.decode(pred_ids, group_tokens=False))
-
-# label_ids = [id for id in sample["labels"] if id != -100]
-# print("Label decoded:", processor.decode(label_ids, group_tokens=False))
-
 print("Prediction:")
 print(processor.decode(pred_ids))
 
 print("\nReference:")
-# print(mal_data_test_transcription[0]["sentence"].lower())
 print(mal_data_test_transcription[0]["transcription"].lower())
 
 def map_to_result(batch):
