@@ -231,7 +231,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 # from transformers import Wav2Vec2Config, Wav2Vec2ForPreTraining, Wav2Vec2FeatureExtractor, Trainer, TrainingArguments
 # from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
@@ -438,8 +438,7 @@ pt_trainer.train()
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
-mal_data = load_from_disk("cptmal_IS_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -661,9 +660,9 @@ trainer = Trainer(
 trainer.train()
 
 
-model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-1950").to("cuda")
+model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-840").to("cuda")
 
-processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-1950")
+processor = Wav2Vec2Processor.from_pretrained(repo_name+"/checkpoint-840")
 
 input_dict = processor(mal_data_test[0]["input_values"], return_tensors="pt", padding=True)
 
