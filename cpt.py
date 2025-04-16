@@ -453,7 +453,7 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600): #one hours (used to be three)
+    if total_duration + sample["duration"] > (3600 * 2): #two hours (used to be three)
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
@@ -657,7 +657,7 @@ trainer = Trainer(
     tokenizer=processor 
 )
 
-# trainer.train()
+trainer.train()
 
 
 model = Wav2Vec2ForCTC.from_pretrained(repo_name+"/checkpoint-1950").to("cuda")
