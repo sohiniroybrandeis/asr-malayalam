@@ -10,12 +10,13 @@ from transformers import AutoModelForCTC, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureE
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
+import torchaudio
 
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
-mal_data = load_from_disk("cptmal_IS_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
+# mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -55,16 +56,21 @@ def remove_special_characters(batch):
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
 
-# Pick 5 random indices
-indices = random.sample(range(len(mal_data_train)), 5)
-
-# Show random samples
-for i in indices:
-    sample = mal_data_train[i]
-    print(f"Index: {i}")
-    print(f"Path: {sample['audio']['path']}")
-    print(f"Transcription: {sample['transcription']}")
-    print("-" * 40)
+# Check a few random samples and save them as .wav files
+# for i in random.sample(range(len(mal_data_train)), 5):
+#     sample = mal_data_train[i]
+#     print(f"\n--- Sample {i} ---")
+#     print("Transcription:", sample["transcription"])
+    
+#     # Save the audio to a file
+#     audio_data = sample["audio"]["array"]
+#     sampling_rate = sample["audio"]["sampling_rate"]
+#     output_file = f"test_sample_{i}.wav"
+    
+#     # Save audio as a .wav file
+#     audio_tensor = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0)
+#     torchaudio.save(output_file, audio_tensor, sampling_rate)
+#     print(f"Audio saved to {output_file}")
 
 
 def extract_all_chars(batch):
