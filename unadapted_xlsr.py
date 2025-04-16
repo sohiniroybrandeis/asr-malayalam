@@ -55,6 +55,17 @@ def remove_special_characters(batch):
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
 
+# Pick 5 random indices
+indices = random.sample(range(len(mal_data_train)), 5)
+
+# Show random samples
+for i in indices:
+    sample = mal_data_train[i]
+    print(f"Index: {i}")
+    print(f"Path: {sample['audio']['path']}")
+    print(f"Transcription: {sample['transcription']}")
+    print("-" * 40)
+
 
 def extract_all_chars(batch):
   all_text = " ".join(batch["transcription"])
