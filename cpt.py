@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
 import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
@@ -193,9 +193,9 @@ training_args = TrainingArguments(
 		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
 		gradient_accumulation_steps=1,
-		per_device_eval_batch_size=2,
+		per_device_eval_batch_size=4,
 		num_train_epochs=10,
-		per_device_train_batch_size=2,
+		per_device_train_batch_size=4,
 		
 		# logging...
 		logging_strategy='steps',
