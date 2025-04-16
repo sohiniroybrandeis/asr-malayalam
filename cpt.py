@@ -438,7 +438,7 @@ torch.cuda.empty_cache()
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
+mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -453,7 +453,7 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 2): #two hours (used to be three)
+    if total_duration + sample["duration"] > (3600 * 1): #one hours (used to be three)
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
