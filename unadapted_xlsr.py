@@ -31,7 +31,7 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 3): #three hours
+    if total_duration + sample["duration"] > (3600 * 1): #three hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
