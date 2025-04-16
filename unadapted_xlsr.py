@@ -10,7 +10,6 @@ from transformers import AutoModelForCTC, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureE
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
-import torchaudio
 
 ###FINE-TUNING CODE
 
@@ -18,20 +17,26 @@ import torchaudio
 mal_data = load_from_disk("cptmal_audio_trans_dataset")
 # mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
+# Split the dataset into training and test sets (80% train, 20% test)
+mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+
+# Extract the training and test sets
+mal_data_train = mal_data_split['train']
+mal_data_test = mal_data_split['test']
+
 # Function to compute duration of each audio sample
 def compute_durations(batch):
     batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
     return batch
 
 # Compute durations
-mal_data = mal_data.map(compute_durations, batched=True)
-mal_data = mal_data.sort("duration")
+mal_data_train = mal_data_train.map(compute_durations, batched=True)
 
 selected_samples = []
 total_duration = 0.0
 
-for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 1): #three hours
+for sample in mal_data_train:
+    if total_duration + sample["duration"] > (3600 * 3): #three hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
@@ -40,40 +45,19 @@ print("Total duration: ", total_duration)
 
 mal_data_train = Dataset.from_list(selected_samples)
 
-# Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data_train.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
-
-# Extract the training and test sets
-mal_data_train = mal_data_split['train']
-mal_data_test = mal_data_split['test']
-
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
+    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
 mal_data_train = mal_data_train.map(remove_special_characters)
 mal_data_test = mal_data_test.map(remove_special_characters)
 
-# Check a few random samples and save them as .wav files
-# for i in random.sample(range(len(mal_data_train)), 5):
-#     sample = mal_data_train[i]
-#     print(f"\n--- Sample {i} ---")
-#     print("Transcription:", sample["transcription"])
-    
-#     # Save the audio to a file
-#     audio_data = sample["audio"]["array"]
-#     sampling_rate = sample["audio"]["sampling_rate"]
-#     output_file = f"test_sample_{i}.wav"
-    
-#     # Save audio as a .wav file
-#     audio_tensor = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0)
-#     torchaudio.save(output_file, audio_tensor, sampling_rate)
-#     print(f"Audio saved to {output_file}")
-
 
 def extract_all_chars(batch):
+#   all_text = " ".join(batch["sentence"])
   all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
@@ -113,6 +97,7 @@ def prepare_dataset(batch):
     batch["input_length"] = len(batch["input_values"])
     
     with processor.as_target_processor():
+        # batch["labels"] = processor(batch["sentence"]).input_ids
         batch["labels"] = processor(batch["transcription"]).input_ids
     return batch
 
@@ -169,6 +154,22 @@ class DataCollatorCTCWithPadding:
 data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
 cer_metric = load("cer")
+
+# def compute_metrics(pred):
+#     pred_logits = pred.predictions
+#     pred_ids = np.argmax(pred_logits, axis=-1)
+
+#     pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
+
+#     pred_str = processor.batch_decode(pred_ids)
+#     # we do not want to group tokens when computing the metrics
+#     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+
+#     label_str = [s.replace(processor.tokenizer.pad_token, '') for s in label_str]  # Remove padding
+
+#     cer = cer_metric.compute(predictions=pred_str, references=label_str)
+
+#     return {"cer": cer}
 
 def compute_metrics(pred):
     pred_logits = pred.predictions
@@ -247,10 +248,25 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
+# sample = mal_data_split["train"][0]
+
+# input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values.to(model.device)
+
+# with torch.no_grad():
+#     logits = model(input_values).logits
+
+# pred_ids = torch.argmax(logits, dim=-1)[0].tolist()
+# print("Pred token ids:", pred_ids)
+# print("Pred decoded:", processor.decode(pred_ids, group_tokens=False))
+
+# label_ids = [id for id in sample["labels"] if id != -100]
+# print("Label decoded:", processor.decode(label_ids, group_tokens=False))
+
 print("Prediction:")
 print(processor.decode(pred_ids))
 
 print("\nReference:")
+# print(mal_data_test_transcription[0]["sentence"].lower())
 print(mal_data_test_transcription[0]["transcription"].lower())
 
 def map_to_result(batch):
