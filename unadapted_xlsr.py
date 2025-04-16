@@ -14,7 +14,8 @@ from datasets import load_from_disk
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
+# mal_data = load_from_disk("cptmal_audio_trans_dataset")
+mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -23,6 +24,7 @@ def compute_durations(batch):
 
 # Compute durations
 mal_data = mal_data.map(compute_durations, batched=True)
+mal_data = mal_data.sort("duration")
 
 selected_samples = []
 total_duration = 0.0
@@ -227,20 +229,6 @@ logits = model(input_dict.input_values.to("cuda")).logits
 pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
-
-# sample = mal_data_split["train"][0]
-
-# input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values.to(model.device)
-
-# with torch.no_grad():
-#     logits = model(input_values).logits
-
-# pred_ids = torch.argmax(logits, dim=-1)[0].tolist()
-# print("Pred token ids:", pred_ids)
-# print("Pred decoded:", processor.decode(pred_ids, group_tokens=False))
-
-# label_ids = [id for id in sample["labels"] if id != -100]
-# print("Label decoded:", processor.decode(label_ids, group_tokens=False))
 
 print("Prediction:")
 print(processor.decode(pred_ids))
