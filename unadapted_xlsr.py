@@ -14,8 +14,7 @@ from datasets import load_from_disk
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
-mal_data = load_from_disk("cptmal_IS_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
 # Split the dataset into training and test sets (80% train, 20% test)
 mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
@@ -36,7 +35,7 @@ selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data_train:
-    if total_duration + sample["duration"] > (3600 * 3): #three hours
+    if total_duration + sample["duration"] > (3600 * 1): #one hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
