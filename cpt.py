@@ -12,8 +12,6 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
-import os
-# os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
@@ -30,8 +28,9 @@ with open(f"pt_wav2vec2_config.json", "w") as F:
 
 pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
-# pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
-pt_mal_train = load_from_disk("cptmal_IS_audio_dataset")
+pt_model.freeze_feature_encoder()
+
+pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
 
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
@@ -73,12 +72,32 @@ def get_seq_indices_not_too_short(dataset, min_length):
 good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
 pt_mal_train = pt_mal_train.select(good_indices)
 
+# Function to compute duration of each audio sample
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
+
+# Compute durations
+pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
+
+selected_samples = []
+total_duration = 0.0
+
+for sample in pt_mal_train:
+    if total_duration + sample["duration"] > (3600 * 10): #10 hours
+        break
+    selected_samples.append(sample)
+    total_duration += sample["duration"]
+    
+print("Total duration: ", total_duration)
+
+pt_mal_train = Dataset.from_list(selected_samples)
+
 # Split the dataset into training and test sets (95% train, 5% test)
 train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 
 # Extract the training and test sets
 pt_train = train_test_split['train']
-
 pt_test = train_test_split['test']
 
 @dataclass
@@ -195,7 +214,7 @@ training_args = TrainingArguments(
 		group_by_length=True,   # groups examples of comparable lengths together
 		gradient_accumulation_steps=1,
 		per_device_eval_batch_size=4,
-		num_train_epochs=10,
+		num_train_epochs=5,
 		per_device_train_batch_size=4,
 		
 		# logging...
@@ -209,7 +228,7 @@ training_args = TrainingArguments(
 		eval_strategy='steps',
 		eval_steps=100,
 
-		learning_rate=1e-4,
+		learning_rate=5e-5,
 		weight_decay=0.005,
 		warmup_ratio=0.1,
 		
@@ -232,13 +251,12 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
-
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_IS_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -247,23 +265,22 @@ def compute_durations(batch):
 
 # Compute durations
 mal_data = mal_data.map(compute_durations, batched=True)
-mal_data = mal_data.sort("duration")
 
 selected_samples = []
 total_duration = 0.0
 
 for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 3): #three hours
+    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
     
 print("Total duration: ", total_duration)
 
-mal_data_train = Dataset.from_list(selected_samples)
+mal_data = Dataset.from_list(selected_samples)
 
 # Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data_train.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
 
 # Extract the training and test sets
 mal_data_train = mal_data_split['train']
@@ -272,6 +289,7 @@ mal_data_test = mal_data_split['test']
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
+    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
@@ -280,6 +298,7 @@ mal_data_test = mal_data_test.map(remove_special_characters)
 
 
 def extract_all_chars(batch):
+#   all_text = " ".join(batch["sentence"])
   all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
@@ -453,6 +472,7 @@ logits = model(input_dict.input_values.to("cuda")).logits
 pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
+
 
 print("Prediction:")
 print(processor.decode(pred_ids))
