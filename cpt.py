@@ -221,7 +221,7 @@ training_args = TrainingArguments(
 		eval_strategy='steps',
 		eval_steps=100,
 
-		learning_rate=5e-5,
+		learning_rate=5e-5, #lowered
 		weight_decay=0.005,
 		warmup_ratio=0.1,
 		
