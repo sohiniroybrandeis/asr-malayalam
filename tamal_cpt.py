@@ -99,6 +99,10 @@ train_test_split = combined.train_test_split(test_size=0.05)
 pt_train = train_test_split['train']
 pt_test = train_test_split['test']
 
+# Step 7: Print total duration of the combined dataset
+total_combined_duration = sum(pt_train['input_length']) + sum(pt_test['input_length'])
+print(f"Total combined duration (train + test): {total_combined_duration / 3600:.2f} hours")
+
 
 @dataclass
 class DataCollatorForPretraining:
