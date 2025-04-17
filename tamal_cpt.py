@@ -73,6 +73,8 @@ print(f"Selected from cptmal: {total_duration/3600:.2f} hours")
 pt_mal_10hr = Dataset.from_list(selected_samples)
 
 # Step 4: Combine 10hr pt_mal with full supp_data
+pt_mal_10hr = pt_mal_10hr.cast_column('audio', Audio(sampling_rate=sampling_rate)) # recast both datasets to ensure identical schema
+supp_data = supp_data.cast_column('audio', Audio(sampling_rate=sampling_rate))
 combined = concatenate_datasets([pt_mal_10hr, supp_data])
 
 # Step 5: Extract input values
