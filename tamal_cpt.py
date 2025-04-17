@@ -1,4 +1,4 @@
-from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset
+from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset, concatenate_datasets
 from evaluate import load
 import random
 import pandas as pd
@@ -73,7 +73,7 @@ print(f"Selected from cptmal: {total_duration/3600:.2f} hours")
 pt_mal_10hr = Dataset.from_list(selected_samples)
 
 # Step 4: Combine 10hr pt_mal with full supp_data
-combined = pt_mal_10hr.concatenate(supp_data)
+combined = concatenate_datasets([pt_mal_10hr, supp_data])
 
 # Step 5: Extract input values
 def get_input_values(batch):
