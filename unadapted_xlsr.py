@@ -14,14 +14,8 @@ from datasets import load_from_disk
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
-
-# Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
-
-# Extract the training and test sets
-mal_data_train = mal_data_split['train']
-mal_data_test = mal_data_split['test']
+# mal_data = load_from_disk("cptmal_audio_trans_dataset")
+mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
@@ -29,20 +23,27 @@ def compute_durations(batch):
     return batch
 
 # Compute durations
-mal_data_train = mal_data_train.map(compute_durations, batched=True)
+mal_data = mal_data.map(compute_durations, batched=True)
 
 selected_samples = []
 total_duration = 0.0
 
-for sample in mal_data_train:
-    if total_duration + sample["duration"] > (3600 * 1): #one hours
+for sample in mal_data:
+    if total_duration + sample["duration"] > (3600 * 1.25): #1.25 hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
     
 print("Total duration: ", total_duration)
 
-mal_data_train = Dataset.from_list(selected_samples)
+mal_data = Dataset.from_list(selected_samples)
+
+# Split the dataset into training and test sets (80% train, 20% test)
+mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+
+# Extract the training and test sets
+mal_data_train = mal_data_split['train']
+mal_data_test = mal_data_split['test']
 
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
@@ -154,22 +155,6 @@ data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
 cer_metric = load("cer")
 
-# def compute_metrics(pred):
-#     pred_logits = pred.predictions
-#     pred_ids = np.argmax(pred_logits, axis=-1)
-
-#     pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
-
-#     pred_str = processor.batch_decode(pred_ids)
-#     # we do not want to group tokens when computing the metrics
-#     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-
-#     label_str = [s.replace(processor.tokenizer.pad_token, '') for s in label_str]  # Remove padding
-
-#     cer = cer_metric.compute(predictions=pred_str, references=label_str)
-
-#     return {"cer": cer}
-
 def compute_metrics(pred):
     pred_logits = pred.predictions
     pred_ids = np.argmax(pred_logits, axis=-1)
@@ -247,19 +232,6 @@ pred_ids = torch.argmax(logits, dim=-1)[0]
 
 mal_data_test_transcription = mal_data_split['test']
 
-# sample = mal_data_split["train"][0]
-
-# input_values = processor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt").input_values.to(model.device)
-
-# with torch.no_grad():
-#     logits = model(input_values).logits
-
-# pred_ids = torch.argmax(logits, dim=-1)[0].tolist()
-# print("Pred token ids:", pred_ids)
-# print("Pred decoded:", processor.decode(pred_ids, group_tokens=False))
-
-# label_ids = [id for id in sample["labels"] if id != -100]
-# print("Label decoded:", processor.decode(label_ids, group_tokens=False))
 
 print("Prediction:")
 print(processor.decode(pred_ids))
