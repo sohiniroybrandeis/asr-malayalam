@@ -30,73 +30,66 @@ pt_model = Wav2Vec2ForPreTraining(pt_wav2vec_config)
 
 pt_model.freeze_feature_encoder()
 
+# Load dataset
 pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
 
+# Set correct sampling rate
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
-def get_input_values(batch): #original
-	"""Normalizes input arrays using feature extractor."""
-	sample = batch['audio']	
-	batch["input_values"] = pt_feature_extractor(
-		sample['array'], sampling_rate=sample['sampling_rate'],
-		return_tensors='np',
-        return_attention_mask=True
-		).input_values[0]
-	
-	# saving input_length for each sequence, might not be needed for this task.
-	batch["input_length"] = [batch["input_values"].shape[0]/sample['sampling_rate']]
-
-	# manually calling garbage collector to dispose off unallocated memory.
-	gc.collect()
-	return batch
-
-
-# applying get_input_values function to all the examples 
-pt_mal_train = pt_mal_train.map(
-		get_input_values,
-		remove_columns=pt_mal_train.column_names,
-	)
-
-def get_seq_indices_not_too_short(dataset, min_length):
-	"""Returns the list of indices of sequences that are 'good'
-	meaning longer than min length."""
-	good_indices = []
-	all_input_lengths = dataset['input_length']
-	for i in range(len(dataset)):
-		if all_input_lengths[i][0] > min_length:
-			good_indices.append(i)
-	return good_indices
-
-# retaining the examples having lengths greater than 3 sec
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
-pt_mal_train = pt_mal_train.select(good_indices)
-
-# Function to compute duration of each audio sample
+# Step 1: Compute durations of each audio sample
 def compute_durations(batch):
     batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
     return batch
 
-# Compute durations
 pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
 
+# Step 2: Filter out samples shorter than 3 seconds
+def get_seq_indices_not_too_short(dataset, min_length):
+    good_indices = []
+    all_input_lengths = dataset['duration']
+    for i in range(len(dataset)):
+        if all_input_lengths[i] > min_length:
+            good_indices.append(i)
+    return good_indices
+
+good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
+pt_mal_train = pt_mal_train.select(good_indices)
+
+# Step 3: Keep only up to 10 hours of audio
 selected_samples = []
 total_duration = 0.0
 
 for sample in pt_mal_train:
-    if total_duration + sample["duration"] > (3600 * 10): #10 hours
+    if total_duration + sample["duration"] > (3600 * 10):  # 10 hours
         break
     selected_samples.append(sample)
     total_duration += sample["duration"]
-    
-print("Total duration: ", total_duration)
 
+print(f"Total selected duration: {total_duration / 3600:.2f} hours")
 pt_mal_train = Dataset.from_list(selected_samples)
 
-# Split the dataset into training and test sets (95% train, 5% test)
-train_test_split = pt_mal_train.train_test_split(test_size=0.05)
+# Step 4: Extract input values using the feature extractor
+def get_input_values(batch):
+    sample = batch['audio']
+    batch["input_values"] = pt_feature_extractor(
+        sample['array'],
+        sampling_rate=sample['sampling_rate'],
+        return_tensors='np',
+        return_attention_mask=True
+    ).input_values[0]
 
-# Extract the training and test sets
+    batch["input_length"] = [batch["input_values"].shape[0] / sample['sampling_rate']]
+    gc.collect()
+    return batch
+
+pt_mal_train = pt_mal_train.map(
+    get_input_values,
+    remove_columns=pt_mal_train.column_names,
+)
+
+# Step 5: Train/test split
+train_test_split = pt_mal_train.train_test_split(test_size=0.05)
 pt_train = train_test_split['train']
 pt_test = train_test_split['test']
 
