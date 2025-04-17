@@ -102,7 +102,7 @@ pt_train = train_test_split['train']
 pt_test = train_test_split['test']
 
 # Step 7: Print total duration of the combined dataset
-total_combined_duration = sum(pt_train['input_length']) + sum(pt_test['input_length'])
+total_combined_duration = sum([x[0] for x in pt_train['input_length']]) + sum([x[0] for x in pt_test['input_length']])
 print(f"Total combined duration (train + test): {total_combined_duration / 3600:.2f} hours")
 
 
