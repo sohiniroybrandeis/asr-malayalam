@@ -14,8 +14,8 @@ from datasets import load_from_disk
 ###FINE-TUNING CODE
 
 # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
-mal_data = load_from_disk("cptmal_IS_audio_dataset")
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
+# mal_data = load_from_disk("cptmal_IS_audio_dataset")
 
 # Function to compute duration of each audio sample
 def compute_durations(batch):
