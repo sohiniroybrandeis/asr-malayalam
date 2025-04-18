@@ -258,7 +258,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train(resume_from_checkpoint="pretraining-res-tammal/checkpoint-10100")
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
