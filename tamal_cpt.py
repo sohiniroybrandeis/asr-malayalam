@@ -230,7 +230,7 @@ training_args = TrainingArguments(
 
 		# save and eval strategy...
 		save_strategy='steps',
-		save_steps=500,
+		save_steps=400,
 		save_total_limit=2,
 		eval_strategy='steps',
 		eval_steps=200,
