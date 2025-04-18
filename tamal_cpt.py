@@ -216,23 +216,24 @@ class CustomTrainer(Trainer):
       
 training_args = TrainingArguments(
 		output_dir='pretraining-res-tammal',
-		gradient_checkpointing=False, 
+		gradient_checkpointing=True, 
 		group_by_length=True,   # groups examples of comparable lengths together
-		gradient_accumulation_steps=1,
-		per_device_eval_batch_size=4,
+		gradient_accumulation_steps=2,
+		per_device_eval_batch_size=2,
 		num_train_epochs=5,
-		per_device_train_batch_size=4,
+		per_device_train_batch_size=2,
+        max_grad_norm=1.0,  
 		
 		# logging...
 		logging_strategy='steps',
-		logging_steps=10,
+		logging_steps=25,
 
 		# save and eval strategy...
 		save_strategy='steps',
-		save_steps=100,
+		save_steps=500,
 		save_total_limit=2,
 		eval_strategy='steps',
-		eval_steps=100,
+		eval_steps=200,
 
 		learning_rate=5e-5,
 		weight_decay=0.005,
@@ -257,7 +258,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+pt_trainer.train(resume_from_checkpoint="pretraining-res-tammal/checkpoint-10100")
 
 ###FINE-TUNING CODE
 
