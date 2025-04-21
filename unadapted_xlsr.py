@@ -13,32 +13,7 @@ from datasets import load_from_disk
 
 ###FINE-TUNING CODE
 
-# Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
-
-# Function to compute duration of each audio sample
-def compute_durations(batch):
-    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-    return batch
-
-# Compute durations
-mal_data = mal_data.map(compute_durations, batched=True)
-
-selected_samples = []
-total_duration = 0.0
-
-for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
-        break
-    selected_samples.append(sample)
-    total_duration += sample["duration"]
-    
-print("Total duration: ", total_duration)
-
-mal_data = Dataset.from_list(selected_samples)
-
-# Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+mal_data_split = load_from_disk("finetune_split")
 
 # Extract the training and test sets
 mal_data_train = mal_data_split['train']
@@ -47,7 +22,6 @@ mal_data_test = mal_data_split['test']
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
-    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
@@ -56,7 +30,6 @@ mal_data_test = mal_data_test.map(remove_special_characters)
 
 
 def extract_all_chars(batch):
-#   all_text = " ".join(batch["sentence"])
   all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
@@ -236,7 +209,6 @@ print("Prediction:")
 print(processor.decode(pred_ids))
 
 print("\nReference:")
-# print(mal_data_test_transcription[0]["sentence"].lower())
 print(mal_data_test_transcription[0]["transcription"].lower())
 
 def map_to_result(batch):
@@ -251,8 +223,5 @@ def map_to_result(batch):
   return batch
 
 results = mal_data_test.map(map_to_result, remove_columns=mal_data_test.column_names)
-
-# print(results["pred_str"])
-# print(results["text"])
 
 print("Test CER: {:.3f}".format(cer_metric.compute(predictions=results["pred_str"], references=results["text"])))
