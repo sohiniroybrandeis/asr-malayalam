@@ -216,26 +216,25 @@ class CustomTrainer(Trainer):
       
 training_args = TrainingArguments(
 		output_dir='pretraining-res-tammal',
-		gradient_checkpointing=True, 
+		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
 		gradient_accumulation_steps=1,
 		per_device_eval_batch_size=4,
 		num_train_epochs=5,
 		per_device_train_batch_size=4,
-        max_grad_norm=1.0,  
 		
 		# logging...
 		logging_strategy='steps',
-		logging_steps=25,
+		logging_steps=10,
 
 		# save and eval strategy...
 		save_strategy='steps',
-		save_steps=400,
+		save_steps=100,
 		save_total_limit=2,
 		eval_strategy='steps',
-		eval_steps=200,
+		eval_steps=100,
 
-		learning_rate=5e-5,
+		learning_rate=5e-5, #lowered
 		weight_decay=0.005,
 		warmup_ratio=0.1,
 		
