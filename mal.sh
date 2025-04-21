@@ -15,4 +15,4 @@
 #SBATCH --partition=regular
 
 hostname
-python3 finetune_data.py
+python3 unadapted_xlsr.py
