@@ -15,4 +15,4 @@
 #SBATCH --partition=regular
 
 hostname
-python3 tamal_cpt.py
+python3 finetune_data.py
