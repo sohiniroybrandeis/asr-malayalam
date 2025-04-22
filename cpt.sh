@@ -11,4 +11,4 @@
 #SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
-python3 cpt.py
+python3 topline_cpt.py
