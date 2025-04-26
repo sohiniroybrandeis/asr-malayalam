@@ -1,9 +1,12 @@
 from datasets import load_dataset, load_from_disk, Dataset
-from transformers import Wav2Vec2Processor, Wav2Vec2Model
+from transformers import Wav2Vec2Processor, Wav2Vec2Model, Wav2Vec2CTCTokenizer
 import torch
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Load the Wav2Vec2CTCTokenizer separately (if it exists)
+tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("facebook/wav2vec2-xls-r-300m")
 
 # Load the pre-trained or fine-tuned model
 processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-xls-r-300m")
