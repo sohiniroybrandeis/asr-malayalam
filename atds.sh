@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=atds
+#SBATCH --job-name=demo
 
-#SBATCH --output=atds_results.txt
+#SBATCH --output=demo_results.txt
 
 #SBATCH --gres=gpu:1       # Request 1 GPU (adjust if needed)
 
@@ -11,4 +11,4 @@
 #SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
-python3 atds.py
+python3 demo.py
