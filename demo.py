@@ -6,8 +6,8 @@ from jiwer import cer
 
 # 1. Get model, audio file, and reference transcription from command-line
 model_dir = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results/checkpoint-1950"
-audio_path = "demo/844424930310400-814-f.wav"
-reference_text = "നാലു കേസുകളില് കുറ്റപത്രം നല്കിയിട്ടും വിചാരണ വൈകുന്നത് എന്തുകൊണ്ടെന്ന് കോടതി ആരാഞ്ഞു"  # Give the correct transcription as an argument
+audio_path = "sonia_set1_21.wav"
+reference_text = "മെഡിക്കൽ ലബോറട്ടറി ടെക്നോളജി റഗുലർ നവംബർ രണ്ടായിരത്തി പതിനാല് പരീക്ഷാഫലം വെബ്സൈറ്റിൽ"  # Give the correct transcription as an argument
 
 # 2. Load model and processor
 processor = Wav2Vec2Processor.from_pretrained(model_dir)
