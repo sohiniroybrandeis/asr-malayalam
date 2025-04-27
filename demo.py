@@ -5,9 +5,9 @@ from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from jiwer import cer
 
 # 1. Get model, audio file, and reference transcription from command-line
-model_dir = sys.argv[1]
-audio_path = sys.argv[2]
-reference_text = sys.argv[3]  # Give the correct transcription as an argument
+model_dir = "cpt1-wav2vec2-large-xls-r-300m-malayalam-results/checkpoint-1950"
+audio_path = "demo/844424930310400-814-f.wav"
+reference_text = "demo/is_trans.txt"  # Give the correct transcription as an argument
 
 # 2. Load model and processor
 processor = Wav2Vec2Processor.from_pretrained(model_dir)
