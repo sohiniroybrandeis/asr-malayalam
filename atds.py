@@ -1,37 +1,10 @@
-from datasets import load_dataset, load_from_disk, Dataset
-from transformers import Wav2Vec2Processor, Wav2Vec2Model, Wav2Vec2CTCTokenizer
 import torch
 import numpy as np
-from sklearn.cluster import KMeans
+from datasets import load_dataset, load_from_disk, Dataset
+from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from sklearn.metrics.pairwise import cosine_similarity
-
-# Load the Wav2Vec2CTCTokenizer separately (if it exists)
-tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("facebook/wav2vec2-xls-r-300m")
-
-# Load the pre-trained or fine-tuned model
-processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-xls-r-300m")
-model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-xls-r-300m").eval()
-
-# Function to process audio data from Hugging Face dataset
-def extract_audio_features(dataset, processor, model):
-    features = []
-    
-    for example in dataset:
-        # Process the audio file (assuming it is in 'audio' field and has 'array' type)
-        audio_input = processor(example['audio']['array'], return_tensors="pt", sampling_rate=16000)
-        
-        # Extract features using the model
-        with torch.no_grad():
-            outputs = model(**audio_input)
-        
-        # Get the hidden states (features) of the model
-        features.append(outputs.last_hidden_state.mean(dim=1).cpu().numpy())  # Mean pooling
-        
-    return np.vstack(features)
-
-# Step 1: Load the Hugging Face dataset for Malayalam and Tamil
-# malayalam_dataset = load_dataset("path_to_your_malayalam_dataset", split="train")
-# tamil_dataset = load_dataset("path_to_your_tamil_dataset", split="train")
+from collections import Counter
+from tqdm import tqdm
 
 # Load the Malayalam data
 malayalam_dataset = load_from_disk("cptmal_audio_trans_dataset")
@@ -44,64 +17,91 @@ def compute_durations(batch):
 # Compute durations
 malayalam_dataset = malayalam_dataset.map(compute_durations, batched=True)
 
-selected_samples = []
-total_duration = 0.0
+selected_samples_m = []
+total_duration_m = 0.0
 
 for sample in malayalam_dataset:
-    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
+    if total_duration_m + sample["duration"] > (3600 * 3.75): #3.75 hours
         break
-    selected_samples.append(sample)
-    total_duration += sample["duration"]
+    selected_samples_m.append(sample)
+    total_duration_m += sample["duration"]
     
-print("Total duration: ", total_duration)
+print("Total duration: ", total_duration_m)
 
-malayalam_dataset = Dataset.from_list(selected_samples)
+malayalam_dataset = Dataset.from_list(selected_samples_m)
 
 # Load the Tamil data
 tamil_dataset = load_from_disk("tammal_IS_audio_dataset")
 
-# Function to compute duration of each audio sample
-def compute_durations(batch):
-    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-    return batch
-
 # Compute durations
 tamil_dataset = tamil_dataset.map(compute_durations, batched=True)
 
-selected_samples = []
-total_duration = 0.0
+selected_samples_t = []
+total_duration_t = 0.0
 
 for sample in tamil_dataset:
-    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
+    if total_duration_t + sample["duration"] > (3600 * 3.75): #3.75 hours
         break
-    selected_samples.append(sample)
-    total_duration += sample["duration"]
+    selected_samples_t.append(sample)
+    total_duration_t += sample["duration"]
     
-print("Total duration: ", total_duration)
+print("Total duration: ", total_duration_t)
 
-tamil_dataset = Dataset.from_list(selected_samples)
+tamil_dataset = Dataset.from_list(selected_samples_t)
 
-# Step 2: Extract features for both languages
-malayalam_feats = extract_audio_features(malayalam_dataset, processor, model)
-tamil_feats = extract_audio_features(tamil_dataset, processor, model)
+# 2. Load pretrained Wav2Vec2 model
+model_name = "facebook/wav2vec2-xls-r-300m"  # or a model trained on Malayalam
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_name)
+model = Wav2Vec2Model.from_pretrained(model_name)
 
-# Step 3: Perform clustering to get token distribution
-def cluster_features(features, num_clusters=100):
-    kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-    kmeans.fit(features)
-    return kmeans
+model.eval()
+model.cuda()
 
-malayalam_kmeans = cluster_features(malayalam_feats)
-tamil_kmeans = cluster_features(tamil_feats)
+# 3. Function to extract tokens (we'll use quantized features, pretending each output is a 'token')
+def extract_tokens(batch):
+    inputs = feature_extractor(batch["audio"]["array"], sampling_rate=16_000, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        outputs = model(inputs.input_values.cuda())
+    # outputs.last_hidden_state shape: (batch_size, time_steps, hidden_dim)
+    # For ATDS, we could:
+    # - Cluster these hidden states into discrete tokens (e.g., KMeans)
+    # - OR simulate token ids by argmax over dimension (simple version)
 
-# Step 4: Calculate the token frequency distribution for each language
-def calculate_token_distribution(kmeans):
-    token_distribution = np.bincount(kmeans.labels_)
-    return token_distribution / token_distribution.sum()
+    hidden_states = outputs.last_hidden_state.squeeze(0).cpu().numpy()  # (time_steps, hidden_dim)
+    
+    # Simple 'tokenization': cluster by taking argmax dimension
+    token_ids = np.argmax(hidden_states, axis=-1)  # Shape: (time_steps,)
+    
+    return token_ids
 
-malayalam_token_distribution = calculate_token_distribution(malayalam_kmeans)
-tamil_token_distribution = calculate_token_distribution(tamil_kmeans)
+# 4. Build token frequency distribution
+def build_token_frequency(dataset, sample_size=500):
+    token_counter = Counter()
+    for example in tqdm(dataset.select(range(min(sample_size, len(dataset))))):
+        tokens = extract_tokens(example)
+        token_counter.update(tokens.tolist())
+    
+    # Convert to a full vector
+    max_token_id = max(token_counter.keys())
+    freq_vector = np.zeros(max_token_id + 1)
+    for token_id, count in token_counter.items():
+        freq_vector[token_id] = count
+    
+    # Normalize the vector
+    freq_vector = freq_vector / freq_vector.sum()
+    
+    return freq_vector
 
-# Step 5: Calculate cosine similarity (ATDS) between the two distributions
-atds_score = cosine_similarity([malayalam_token_distribution], [tamil_token_distribution])
-print(f"Acoustic Token Distribution Similarity (ATDS) score: {atds_score[0][0]}")
+# 5. Compute frequency vectors
+malayalam_freq = build_token_frequency(malayalam_dataset)
+tamil_freq = build_token_frequency(tamil_dataset)
+
+# Pad the shorter vector (make same length)
+max_len = max(len(malayalam_freq), len(tamil_freq))
+malayalam_freq = np.pad(malayalam_freq, (0, max_len - len(malayalam_freq)))
+tamil_freq = np.pad(tamil_freq, (0, max_len - len(tamil_freq)))
+
+# 6. Cosine similarity
+similarity = cosine_similarity([malayalam_freq], [tamil_freq])[0][0]
+
+print(f"ATDS (Acoustic Token Distribution Similarity) between Malayalam and Tamil: {similarity:.4f}")
