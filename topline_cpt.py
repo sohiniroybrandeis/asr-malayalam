@@ -1,4 +1,4 @@
-from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset
+from datasets import load_dataset, DatasetDict, ClassLabel, Audio, Dataset, concatenate_datasets
 from evaluate import load
 import random
 import pandas as pd
@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
 
-###saving this version
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         "facebook/wav2vec2-xls-r-300m",
@@ -33,10 +32,12 @@ pt_model.freeze_feature_encoder()
 
 # Load dataset
 pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
+supp_data = load_from_disk("tammal_IS_audio_dataset")
 
 # Set correct sampling rate
 sampling_rate = pt_feature_extractor.sampling_rate
 pt_mal_train = pt_mal_train.cast_column('audio', Audio(sampling_rate=sampling_rate))
+supp_data = supp_data.cast_column('audio', Audio(sampling_rate=sampling_rate))
 
 # Step 1: Compute durations of each audio sample
 def compute_durations(batch):
@@ -44,6 +45,7 @@ def compute_durations(batch):
     return batch
 
 pt_mal_train = pt_mal_train.map(compute_durations, batched=True)
+supp_data = supp_data.map(compute_durations, batched=True)
 
 # Step 2: Filter out samples shorter than 3 seconds
 def get_seq_indices_not_too_short(dataset, min_length):
@@ -54,13 +56,18 @@ def get_seq_indices_not_too_short(dataset, min_length):
             good_indices.append(i)
     return good_indices
 
-good_indices = get_seq_indices_not_too_short(pt_mal_train, 3)
-pt_mal_train = pt_mal_train.select(good_indices)
+good_indices_m = get_seq_indices_not_too_short(pt_mal_train, 3)
+pt_mal_train = pt_mal_train.select(good_indices_m)
+
+good_indices_t = get_seq_indices_not_too_short(supp_data, 3)
+supp_data = supp_data.select(good_indices_t)
+
+combined = concatenate_datasets([pt_mal_train, supp_data])
 
 # Step 3: Check duration
 total_duration = 0.0
 
-for sample in pt_mal_train:
+for sample in combined:
     total_duration += sample["duration"]
 
 print(f"Total selected duration: {total_duration / 3600:.2f} hours")
@@ -244,34 +251,32 @@ pt_trainer.train()
 
 ###FINE-TUNING CODE
 
-# # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
+# Load the Malayalam data
+mal_data = load_from_disk("cptmal_audio_trans_dataset")
 
-# # Function to compute duration of each audio sample
-# def compute_durations(batch):
-#     batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-#     return batch
+# Function to compute duration of each audio sample
+def compute_durations(batch):
+    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
+    return batch
 
-# # Compute durations
-# mal_data = mal_data.map(compute_durations, batched=True)
+# Compute durations
+mal_data = mal_data.map(compute_durations, batched=True)
 
-# selected_samples = []
-# total_duration = 0.0
+selected_samples = []
+total_duration = 0.0
 
-# for sample in mal_data:
-#     if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
-#         break
-#     selected_samples.append(sample)
-#     total_duration += sample["duration"]
+for sample in mal_data:
+    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
+        break
+    selected_samples.append(sample)
+    total_duration += sample["duration"]
     
-# print("Total duration: ", total_duration)
+print("Total duration: ", total_duration)
 
-# mal_data = Dataset.from_list(selected_samples)
+mal_data = Dataset.from_list(selected_samples)
 
-# # Split the dataset into training and test sets (80% train, 20% test)
-# mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
-
-mal_data_split = load_from_disk("finetune_split")
+# Split the dataset into training and test sets (80% train, 20% test)
+mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
 
 # Extract the training and test sets
 mal_data_train = mal_data_split['train']
