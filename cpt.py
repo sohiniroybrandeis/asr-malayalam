@@ -202,7 +202,7 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-	output_dir='wav2vec2-pretraining-res',
+    output_dir='wav2vec2-pretraining-res',
     gradient_checkpointing=False,
     group_by_length=True,
     gradient_accumulation_steps=1,
