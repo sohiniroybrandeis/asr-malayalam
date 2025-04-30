@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=asr-kanmal
+#SBATCH --job-name=asr-tamal
 
 #SBATCH --output=results.txt
 
@@ -10,9 +10,5 @@
 
 #SBATCH --mem=32G          # Request 32GB total RAM
 
-#SBATCH --account=masters
-
-#SBATCH --partition=regular
-
 hostname
-python3 kanmal_cpt.py
+python3 tamal_cpt.py
