@@ -11,4 +11,4 @@
 #SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
-python3 demo.py
+python3 atds.py
