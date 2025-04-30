@@ -258,7 +258,7 @@ pt_trainer = CustomTrainer(
 )
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-pt_trainer.train()
+# pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -302,7 +302,7 @@ tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_to
 repo_name = "cpt5-wav2vec2-large-xls-r-300m-tammal-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-kanmal/checkpoint-21350")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-kanmal/checkpoint-19115")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
@@ -398,7 +398,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "pretraining-res-kanmal/checkpoint-21350", 
+    "pretraining-res-kanmal/checkpoint-19115", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
