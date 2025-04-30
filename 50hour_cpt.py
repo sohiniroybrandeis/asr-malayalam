@@ -205,7 +205,7 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-		output_dir='pretraining-res-mal30',
+		output_dir='pretraining-res-tamal50',
 		gradient_checkpointing=False, 
 		group_by_length=True,   # groups examples of comparable lengths together
 		gradient_accumulation_steps=1,
@@ -251,32 +251,7 @@ pt_trainer.train()
 
 ###FINE-TUNING CODE
 
-# Load the Malayalam data
-mal_data = load_from_disk("cptmal_audio_trans_dataset")
-
-# Function to compute duration of each audio sample
-def compute_durations(batch):
-    batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-    return batch
-
-# Compute durations
-mal_data = mal_data.map(compute_durations, batched=True)
-
-selected_samples = []
-total_duration = 0.0
-
-for sample in mal_data:
-    if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
-        break
-    selected_samples.append(sample)
-    total_duration += sample["duration"]
-    
-print("Total duration: ", total_duration)
-
-mal_data = Dataset.from_list(selected_samples)
-
-# Split the dataset into training and test sets (80% train, 20% test)
-mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
+mal_data_split = load_from_disk("finetune_split")
 
 # Extract the training and test sets
 mal_data_train = mal_data_split['train']
@@ -316,10 +291,10 @@ with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
 
 tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-repo_name = "cpt3-wav2vec2-large-xls-r-300m-mal30-results"
+repo_name = "cpt4-wav2vec2-large-xls-r-300m-mal30-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-mal30/checkpoint-24085")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-tamal50/checkpoint-24085")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
