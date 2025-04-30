@@ -7,13 +7,12 @@ import gc
 import json
 import numpy as np
 import torch
-from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
+from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer, EarlyStoppingCallback
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
 
-###saving this version
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         "facebook/wav2vec2-xls-r-300m",
@@ -198,78 +197,45 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-		output_dir='pretraining-res-mal30',
-		gradient_checkpointing=False, 
-		group_by_length=True,   # groups examples of comparable lengths together
-		gradient_accumulation_steps=1,
-		per_device_eval_batch_size=4,
-		num_train_epochs=5,
-		per_device_train_batch_size=4,
-		
-		# logging...
-		logging_strategy='steps',
-		logging_steps=25,
+    output_dir='pretraining-res-mal30',
+    gradient_checkpointing=False,
+    group_by_length=True,
+    gradient_accumulation_steps=1,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
 
-		# save and eval strategy...
-		save_strategy='steps',
-		save_steps=400,
-		save_total_limit=2,
-		eval_strategy='steps',
-		eval_steps=200,
+    num_train_epochs=50,  # large upper limit
+    evaluation_strategy="epoch",  # consistent across datasets
+    save_strategy="epoch",
+    logging_strategy="epoch",
 
-		learning_rate=5e-5,
-		weight_decay=0.005,
-		warmup_ratio=0.1,
-		
-		fp16=True,  # use this only if it is supported by you GPU
-		report_to=["tensorboard"],
-		load_best_model_at_end=True,
-		metric_for_best_model="loss",
-		# prediction_loss_only=True,
-		greater_is_better=False,
-		push_to_hub=False,
-		)
+    learning_rate=5e-5,
+    weight_decay=0.005,
+    warmup_ratio=0.1,
+
+    fp16=True,
+    report_to=["tensorboard"],
+    load_best_model_at_end=True,
+    metric_for_best_model="loss",
+    greater_is_better=False,
+    push_to_hub=False,
+)
 
 pt_trainer = CustomTrainer(
     model=pt_model,
     data_collator=pt_data_collator,
     args=training_args,
-    train_dataset=pt_train,
-    eval_dataset=pt_test,
+    train_dataset=pt_train,  # 10h or 30h version
+    eval_dataset=pt_test,   # Same eval dataset for both
     tokenizer=pt_feature_extractor,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
+
 print(f"Starting training...!")
 torch.cuda.empty_cache()
 pt_trainer.train()
 
 ###FINE-TUNING CODE
-
-# # Load the Malayalam data
-# mal_data = load_from_disk("cptmal_audio_trans_dataset")
-
-# # Function to compute duration of each audio sample
-# def compute_durations(batch):
-#     batch["duration"] = [len(a["array"]) / a["sampling_rate"] for a in batch["audio"]]
-#     return batch
-
-# # Compute durations
-# mal_data = mal_data.map(compute_durations, batched=True)
-
-# selected_samples = []
-# total_duration = 0.0
-
-# for sample in mal_data:
-#     if total_duration + sample["duration"] > (3600 * 3.75): #3.75 hours
-#         break
-#     selected_samples.append(sample)
-#     total_duration += sample["duration"]
-    
-# print("Total duration: ", total_duration)
-
-# mal_data = Dataset.from_list(selected_samples)
-
-# # Split the dataset into training and test sets (80% train, 20% test)
-# mal_data_split = mal_data.train_test_split(test_size=0.2, seed=121) #ensuring same train split each time
 
 mal_data_split = load_from_disk("finetune_split")
 
