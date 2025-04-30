@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=cpt-mal
+#SBATCH --job-name=cpt-50mal
 
 #SBATCH --output=cpt_results.txt
 
