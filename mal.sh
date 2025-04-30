@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=asr-mal
+#SBATCH --job-name=asr-kanmal
 
 #SBATCH --output=results.txt
 
@@ -15,4 +15,4 @@
 #SBATCH --partition=regular
 
 hostname
-python3 tamal_cpt.py
+python3 kanmal_cpt.py
