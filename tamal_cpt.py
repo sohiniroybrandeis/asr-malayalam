@@ -216,17 +216,23 @@ class CustomTrainer(Trainer):
       
 training_args = TrainingArguments(
 	output_dir='pretraining-res-tammal',
-    gradient_checkpointing=True,
+    gradient_checkpointing=False, 
     group_by_length=True,
-    gradient_accumulation_steps=4,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
+    gradient_accumulation_steps=1,
+    per_device_eval_batch_size=4,
+    max_steps=4500,  # same for both models
+    per_device_train_batch_size=4,
 
-    num_train_epochs=50,  # large upper limit
-    evaluation_strategy="epoch",  # consistent across datasets
-    save_strategy="epoch",
-    logging_strategy="epoch",
+    # logging...
+    logging_strategy='steps',
+    logging_steps=25,
+
+    # save and eval strategy...
+    save_strategy='steps',
+    save_steps=400,
     save_total_limit=2,
+    evaluation_strategy='steps',
+    eval_steps=200,
 
     learning_rate=5e-5,
     weight_decay=0.005,
@@ -246,8 +252,7 @@ pt_trainer = CustomTrainer(
     args=training_args,
     train_dataset=pt_train,  # 10h or 30h version
     eval_dataset=pt_test,   # Same eval dataset for both
-    tokenizer=pt_feature_extractor,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
+    tokenizer=pt_feature_extractor
 )
 
 print(f"Starting training...!")
