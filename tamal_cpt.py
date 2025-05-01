@@ -215,7 +215,7 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-    output_dir='pretraining-res-tammal',
+	output_dir='pretraining-res-tammal',
     gradient_checkpointing=False,
     group_by_length=True,
     gradient_accumulation_steps=1,
@@ -226,6 +226,7 @@ training_args = TrainingArguments(
     evaluation_strategy="epoch",  # consistent across datasets
     save_strategy="epoch",
     logging_strategy="epoch",
+    save_total_limit=2,
 
     learning_rate=5e-5,
     weight_decay=0.005,
