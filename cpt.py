@@ -7,7 +7,7 @@ import gc
 import json
 import numpy as np
 import torch
-from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer, EarlyStoppingCallback
+from transformers import TrainerCallback, Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer, EarlyStoppingCallback
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
@@ -200,7 +200,7 @@ class CustomTrainer(Trainer):
 		self.log(metrics)
 
 		return metrics
-      
+
 training_args = TrainingArguments(
 	output_dir='wav2vec2-pretraining-res',
     gradient_checkpointing=True,
@@ -234,7 +234,7 @@ pt_trainer = CustomTrainer(
     train_dataset=pt_train,  # 10h or 30h version
     eval_dataset=pt_test,   # Same eval dataset for both
     tokenizer=pt_feature_extractor,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
 )
 
 print(f"Starting training...!")
