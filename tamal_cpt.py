@@ -257,7 +257,7 @@ pt_trainer = CustomTrainer(
 
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
