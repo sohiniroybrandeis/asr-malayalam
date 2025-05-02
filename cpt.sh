@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=cpt-top
+#SBATCH --job-name=cpt-50
 
 #SBATCH --output=cpt_results.txt
 
@@ -11,4 +11,4 @@
 #SBATCH --mem=32G          # Request 32GB total RAM
 
 hostname
-python3 topline_cpt.py
+python3 50hour_cpt.py
