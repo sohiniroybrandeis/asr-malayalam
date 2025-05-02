@@ -7,7 +7,7 @@ import gc
 import json
 import numpy as np
 import torch
-from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer, EarlyStoppingCallback
+from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config, Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor, Wav2Vec2Processor, Wav2Vec2ForCTC, TrainingArguments, Trainer
 from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
@@ -197,39 +197,44 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-    output_dir='pretraining-res-mal30',
-    gradient_checkpointing=False,
-    group_by_length=True,
-    gradient_accumulation_steps=1,
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
+		output_dir='pretraining-res-mal30',
+        gradient_checkpointing=False, 
+        group_by_length=True,
+        gradient_accumulation_steps=1,
+        per_device_eval_batch_size=4,
+        max_steps=4500,  # same for both models
+        per_device_train_batch_size=4,
 
-    num_train_epochs=50,  # large upper limit
-    evaluation_strategy="epoch",  # consistent across datasets
-    save_strategy="epoch",
-    logging_strategy="epoch",
-    save_total_limit=2,
+        # logging...
+        logging_strategy='steps',
+        logging_steps=25,
 
-    learning_rate=5e-5,
-    weight_decay=0.005,
-    warmup_ratio=0.1,
+        # save and eval strategy...
+        save_strategy='steps',
+        save_steps=400,
+        save_total_limit=2,
+        evaluation_strategy='steps',
+        eval_steps=200,
 
-    fp16=True,
-    report_to=["tensorboard"],
-    load_best_model_at_end=True,
-    metric_for_best_model="loss",
-    greater_is_better=False,
-    push_to_hub=False,
+        learning_rate=5e-5,
+        weight_decay=0.005,
+        warmup_ratio=0.1,
+
+        fp16=True,
+        report_to=["tensorboard"],
+        load_best_model_at_end=True,
+        metric_for_best_model="loss",
+        greater_is_better=False,
+        push_to_hub=False,
 )
 
 pt_trainer = CustomTrainer(
     model=pt_model,
     data_collator=pt_data_collator,
     args=training_args,
-    train_dataset=pt_train,  # 10h or 30h version
-    eval_dataset=pt_test,   # Same eval dataset for both
+    train_dataset=pt_train,
+    eval_dataset=pt_test,
     tokenizer=pt_feature_extractor,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
 print(f"Starting training...!")
@@ -281,7 +286,7 @@ tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_to
 repo_name = "cpt3-wav2vec2-large-xls-r-300m-mal30-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-mal30/checkpoint-24085")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-mal30/checkpoint-4500")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
@@ -377,7 +382,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "pretraining-res-mal30/checkpoint-24085", 
+    "pretraining-res-mal30/checkpoint-4500", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
