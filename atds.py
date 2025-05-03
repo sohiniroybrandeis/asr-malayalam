@@ -21,7 +21,7 @@ selected_samples_m = []
 total_duration_m = 0.0
 
 for sample in malayalam_dataset:
-    if total_duration_m + sample["duration"] > (3600 * 3.75): #3.75 hours
+    if total_duration_m + sample["duration"] > (3600 * 6): #6 hours
         break
     selected_samples_m.append(sample)
     total_duration_m += sample["duration"]
@@ -40,7 +40,7 @@ selected_samples_k = []
 total_duration_k = 0.0
 
 for sample in telugu_dataset:
-    if total_duration_k + sample["duration"] > (3600 * 3.75): #3.75 hours
+    if total_duration_k + sample["duration"] > (3600 * 6): #6 hours
         break
     selected_samples_k.append(sample)
     total_duration_k += sample["duration"]
