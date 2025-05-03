@@ -3,7 +3,8 @@ import numpy as np
 from datasets import load_from_disk, Dataset
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import MiniBatchKMeans
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 # Load the Malayalam data
@@ -77,18 +78,20 @@ def extract_representations(dataset, max_samples=500, max_frames=150):
 mal_reps = extract_representations(malayalam_dataset)
 tel_reps = extract_representations(telugu_dataset)
 
-# Combine for clustering
-all_reps = np.concatenate([mal_reps, tel_reps], axis=0)
+# 4. PCA Dimensionality Reduction
+pca = PCA(n_components=50)  # Reduce to 50 components
+mal_reps_pca = pca.fit_transform(mal_reps)
+tel_reps_pca = pca.transform(tel_reps)  # Use same PCA transformation for Telugu
 
-# 4. Cluster with KMeans
-kmeans = MiniBatchKMeans(n_clusters=50, random_state=42, batch_size=2048)
-kmeans.fit(all_reps)
+# 5. Clustering with KMeans
+kmeans = KMeans(n_clusters=50, random_state=42)  # KMeans without mini-batching
+kmeans.fit(np.vstack([mal_reps_pca, tel_reps_pca]))  # Fit on both languages
 
 # Assign cluster labels
-mal_labels = kmeans.predict(mal_reps)
-tel_labels = kmeans.predict(tel_reps)
+mal_labels = kmeans.predict(mal_reps_pca)
+tel_labels = kmeans.predict(tel_reps_pca)
 
-# 5. Frequency vectors
+# 6. Frequency vectors
 mal_freq = np.bincount(mal_labels, minlength=50)
 tel_freq = np.bincount(tel_labels, minlength=50)
 
@@ -96,6 +99,6 @@ tel_freq = np.bincount(tel_labels, minlength=50)
 mal_freq = mal_freq / mal_freq.sum()
 tel_freq = tel_freq / tel_freq.sum()
 
-# 6. Cosine similarity (ATDS)
+# 7. Cosine similarity (ATDS)
 atds = cosine_similarity([mal_freq], [tel_freq])[0][0]
-print(f"ATDS (KMeans-based) between Malayalam and Telugu: {atds:.4f}")
+print(f"ATDS (PCA + KMeans-based) between Malayalam and Telugu: {atds:.4f}")
