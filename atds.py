@@ -1,10 +1,9 @@
 import torch
 import numpy as np
-from datasets import load_from_disk, Dataset
+from datasets import load_dataset, load_from_disk, Dataset
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
+from collections import Counter
 from tqdm import tqdm
 
 # Load the Malayalam data
@@ -58,47 +57,51 @@ model = Wav2Vec2Model.from_pretrained(model_name)
 model.eval()
 model.cuda()
 
-# 3. Function to extract frame-level embeddings (hidden states)
-def extract_representations(dataset, max_samples=500, max_frames=150):
-    all_reps = []
+# 3. Function to extract tokens (we'll use quantized features, pretending each output is a 'token')
+def extract_tokens(batch):
+    inputs = feature_extractor(batch["audio"]["array"], sampling_rate=16_000, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        outputs = model(inputs.input_values.cuda())
+    # outputs.last_hidden_state shape: (batch_size, time_steps, hidden_dim)
+    # For ATDS, we could:
+    # - Cluster these hidden states into discrete tokens (e.g., KMeans)
+    # - OR simulate token ids by argmax over dimension (simple version)
 
-    for sample in tqdm(dataset.select(range(min(max_samples, len(dataset))))):
-        inputs = feature_extractor(sample["audio"]["array"], sampling_rate=16000, return_tensors="pt")
-        with torch.no_grad():
-            outputs = model(inputs.input_values.cuda())
-        reps = outputs.last_hidden_state.squeeze(0).cpu().numpy()  # (T, D)
-        reps = reps[::2]  # downsample time dimension
-        if len(reps) > max_frames:
-            reps = reps[:max_frames]
-        all_reps.extend(reps)
+    hidden_states = outputs.last_hidden_state.squeeze(0).cpu().numpy()  # (time_steps, hidden_dim)
+    
+    # Simple 'tokenization': cluster by taking argmax dimension
+    token_ids = np.argmax(hidden_states, axis=-1)  # Shape: (time_steps,)
+    
+    return token_ids
 
-    return np.array(all_reps)
+# 4. Build token frequency distribution
+def build_token_frequency(dataset, sample_size=500):
+    token_counter = Counter()
+    for example in tqdm(dataset.select(range(min(sample_size, len(dataset))))):
+        tokens = extract_tokens(example)
+        token_counter.update(tokens.tolist())
+    
+    # Convert to a full vector
+    max_token_id = max(token_counter.keys())
+    freq_vector = np.zeros(max_token_id + 1)
+    for token_id, count in token_counter.items():
+        freq_vector[token_id] = count
+    
+    # Normalize the vector
+    freq_vector = freq_vector / freq_vector.sum()
+    
+    return freq_vector
 
-# Extract all frame-level embeddings
-mal_reps = extract_representations(malayalam_dataset)
-tel_reps = extract_representations(telugu_dataset)
+# 5. Compute frequency vectors
+malayalam_freq = build_token_frequency(malayalam_dataset)
+telg_freq = build_token_frequency(telugu_dataset)
 
-# 4. PCA Dimensionality Reduction
-pca = PCA(n_components=50)  # Reduce to 50 components
-mal_reps_pca = pca.fit_transform(mal_reps)
-tel_reps_pca = pca.transform(tel_reps)  # Use same PCA transformation for Telugu
+# Pad the shorter vector (make same length)
+max_len = max(len(malayalam_freq), len(telg_freq))
+malayalam_freq = np.pad(malayalam_freq, (0, max_len - len(malayalam_freq)))
+telg_freq = np.pad(telg_freq, (0, max_len - len(telg_freq)))
 
-# 5. Clustering with KMeans
-kmeans = KMeans(n_clusters=50, random_state=42)  # KMeans without mini-batching
-kmeans.fit(np.vstack([mal_reps_pca, tel_reps_pca]))  # Fit on both languages
+# 6. Cosine similarity
+similarity = cosine_similarity([malayalam_freq], [telg_freq])[0][0]
 
-# Assign cluster labels
-mal_labels = kmeans.predict(mal_reps_pca)
-tel_labels = kmeans.predict(tel_reps_pca)
-
-# 6. Frequency vectors
-mal_freq = np.bincount(mal_labels, minlength=50)
-tel_freq = np.bincount(tel_labels, minlength=50)
-
-# Normalize
-mal_freq = mal_freq / mal_freq.sum()
-tel_freq = tel_freq / tel_freq.sum()
-
-# 7. Cosine similarity (ATDS)
-atds = cosine_similarity([mal_freq], [tel_freq])[0][0]
-print(f"ATDS (PCA + KMeans-based) between Malayalam and Telugu: {atds:.4f}")
+print(f"ATDS (Acoustic Token Distribution Similarity) between Malayalam and Telugu: {similarity:.4f}")
