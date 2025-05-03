@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=demo
+#SBATCH --job-name=atds
 
-#SBATCH --output=demo_results.txt
+#SBATCH --output=atds_results.txt
 
 #SBATCH --gres=gpu:1       # Request 1 GPU (adjust if needed)
 
