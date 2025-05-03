@@ -30,16 +30,16 @@ print("Total duration: ", total_duration_m)
 
 malayalam_dataset = Dataset.from_list(selected_samples_m)
 
-# Load the Kannada data
-kannada_dataset = load_from_disk("kannada_IS_audio_dataset")
+# Load the Telugu data
+telugu_dataset = load_from_disk("telugu_IS_audio_dataset")
 
 # Compute durations
-kannada_dataset = kannada_dataset.map(compute_durations, batched=True)
+telugu_dataset = telugu_dataset.map(compute_durations, batched=True)
 
 selected_samples_k = []
 total_duration_k = 0.0
 
-for sample in kannada_dataset:
+for sample in telugu_dataset:
     if total_duration_k + sample["duration"] > (3600 * 3.75): #3.75 hours
         break
     selected_samples_k.append(sample)
@@ -47,7 +47,7 @@ for sample in kannada_dataset:
     
 print("Total duration: ", total_duration_k)
 
-kannada_dataset = Dataset.from_list(selected_samples_k)
+telugu_dataset = Dataset.from_list(selected_samples_k)
 
 # # Load the Tamil data
 # tamil_dataset = load_from_disk("tammal_IS_audio_dataset")
@@ -113,20 +113,20 @@ def build_token_frequency(dataset, sample_size=500):
 
 # 5. Compute frequency vectors
 malayalam_freq = build_token_frequency(malayalam_dataset)
-kann_freq = build_token_frequency(kannada_dataset)
+telg_freq = build_token_frequency(telugu_dataset)
 # tamil_freq = build_token_frequency(tamil_dataset)
 
 # Pad the shorter vector (make same length)
-max_len = max(len(malayalam_freq), len(kann_freq))
+max_len = max(len(malayalam_freq), len(telg_freq))
 malayalam_freq = np.pad(malayalam_freq, (0, max_len - len(malayalam_freq)))
-tamil_freq = np.pad(kann_freq, (0, max_len - len(kann_freq)))
+tamil_freq = np.pad(telg_freq, (0, max_len - len(telg_freq)))
 # max_len = max(len(malayalam_freq), len(tamil_freq))
 # malayalam_freq = np.pad(malayalam_freq, (0, max_len - len(malayalam_freq)))
 # tamil_freq = np.pad(tamil_freq, (0, max_len - len(tamil_freq)))
 
 # 6. Cosine similarity
-similarity = cosine_similarity([malayalam_freq], [kann_freq])[0][0]
+similarity = cosine_similarity([malayalam_freq], [telg_freq])[0][0]
 # similarity = cosine_similarity([malayalam_freq], [tamil_freq])[0][0]
 
-print(f"ATDS (Acoustic Token Distribution Similarity) between Malayalam and Kannada: {similarity:.4f}")
+print(f"ATDS (Acoustic Token Distribution Similarity) between Malayalam and Telugu: {similarity:.4f}")
 # print(f"ATDS (Acoustic Token Distribution Similarity) between Malayalam and Tamil: {similarity:.4f}")
