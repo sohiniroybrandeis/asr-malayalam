@@ -391,7 +391,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "pretraining-res-mal30/checkpoint-4500", 
+    "pretraining-res-tamal50/checkpoint-4500", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
