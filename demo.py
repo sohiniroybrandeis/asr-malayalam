@@ -9,8 +9,8 @@ from googletrans import Translator
 
 # --- 1. Paths and inputs
 model_dir = "cpt4-wav2vec2-large-xls-r-300m-mal30-results/checkpoint-1950"
-audio_path = "demo/sonia_set1_1.wav"
-reference_text = "സർവ്വകലാശാല വൈസ് ചാൻസലർ ഡോ. ചന്ദ്രബാബുവിനും സംഭവം തലവേദനയാവുകയാണ്"
+audio_path = "demo/sonia_set1_11.wav"
+reference_text = "മൂന്നാം റൗണ്ടിൽ ജർമൻ താരം ആഞ്ചലിക് കെർബറാണ് ഷറപ്പോവയെ വീഴ്ത്തിയത്"
 
 # --- 2. Load model and processor
 processor = Wav2Vec2Processor.from_pretrained(model_dir)
