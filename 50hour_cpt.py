@@ -32,7 +32,7 @@ pt_model.freeze_feature_encoder()
 
 # Load dataset
 pt_mal_train = load_from_disk("cptmal_audio_trans_dataset")
-supp_data = load_from_disk("tammal_IS_audio_dataset")
+supp_data = load_from_disk("kannada_IS_audio_dataset")
 
 # Set correct sampling rate
 sampling_rate = pt_feature_extractor.sampling_rate
@@ -205,7 +205,7 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-	output_dir='pretraining-res-tamal50',
+	output_dir='pretraining-res-kamal50',
         gradient_checkpointing=False, 
         group_by_length=True,
         gradient_accumulation_steps=1,
@@ -242,13 +242,12 @@ pt_trainer = CustomTrainer(
     args=training_args,
     train_dataset=pt_train,  # 10h or 30h version
     eval_dataset=pt_test,   # Same eval dataset for both
-    tokenizer=pt_feature_extractor,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+    tokenizer=pt_feature_extractor
 )
 
 print(f"Starting training...!")
 torch.cuda.empty_cache()
-# pt_trainer.train()
+pt_trainer.train()
 
 ###FINE-TUNING CODE
 
@@ -261,7 +260,6 @@ mal_data_test = mal_data_split['test']
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 
 def remove_special_characters(batch):
-    # batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
     batch["transcription"] = re.sub(chars_to_ignore_regex, '', batch["transcription"]).lower()
     return batch
 
@@ -270,7 +268,6 @@ mal_data_test = mal_data_test.map(remove_special_characters)
 
 
 def extract_all_chars(batch):
-#   all_text = " ".join(batch["sentence"])
   all_text = " ".join(batch["transcription"])
   vocab = list(set(all_text))
   return {"vocab": [vocab], "all_text": [all_text]}
@@ -292,10 +289,10 @@ with open('vocab.json', 'w') as vocab_file:
     json.dump(vocab_dict, vocab_file)
 
 tokenizer = Wav2Vec2CTCTokenizer.from_pretrained("./", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-repo_name = "cpt4-wav2vec2-large-xls-r-300m-mal30-results"
+repo_name = "cpt7-wav2vec2-large-xls-r-300m-mal50-results"
 tokenizer.save_pretrained(repo_name)
 
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-tamal50/checkpoint-4500")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("pretraining-res-kamal50/checkpoint-4500")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 mal_data_train = mal_data_train.cast_column("audio", Audio(sampling_rate=16_000))
@@ -391,7 +388,7 @@ def compute_metrics(pred):
 
 
 model = Wav2Vec2ForCTC.from_pretrained(
-    "pretraining-res-tamal50/checkpoint-4500", 
+    "pretraining-res-kamal50/checkpoint-4500", 
     attention_dropout=0.0,
     hidden_dropout=0.0,
     feat_proj_dropout=0.0,
