@@ -1,4 +1,5 @@
 import torch
+import asyncio
 import librosa
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from jiwer import cer
@@ -32,8 +33,12 @@ romanized_pred = transliterate(predicted_text, sanscript.MALAYALAM, sanscript.IT
 
 # --- 6. Translation
 translator = Translator()
-gloss_ref = translator.translate(reference_text, src='ml', dest='en').text
-gloss_pred = translator.translate(predicted_text, src='ml', dest='en').text
+async def get_translations():
+    gloss_ref = await translator.translate(reference_text, src='ml', dest='en')
+    gloss_pred = await translator.translate(predicted_text, src='ml', dest='en')
+    return gloss_ref.text, gloss_pred.text
+
+gloss_ref, gloss_pred = asyncio.run(get_translations())
 
 # --- 7. CER
 cer_score = cer(reference_text.lower(), predicted_text.lower())
