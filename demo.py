@@ -31,27 +31,13 @@ predicted_text = processor.decode(predicted_ids[0])
 romanized_ref = transliterate(reference_text, sanscript.MALAYALAM, sanscript.ITRANS)
 romanized_pred = transliterate(predicted_text, sanscript.MALAYALAM, sanscript.ITRANS)
 
-# --- 6. Translation
-translator = Translator()
-async def get_translations():
-    gloss_ref = await translator.translate(reference_text, src='ml', dest='en')
-    gloss_pred = await translator.translate(predicted_text, src='ml', dest='en')
-    return gloss_ref.text, gloss_pred.text
-
-gloss_ref, gloss_pred = asyncio.run(get_translations())
-
-# --- 7. CER
-cer_score = cer(reference_text.lower(), predicted_text.lower())
-
 # --- 8. Output everything
 print("\n--- Reference ---")
 print(f"Malayalam:   {reference_text}")
 print(f"Romanized:   {romanized_ref}")
-print(f"Gloss:       {gloss_ref}")
 
 print("\n--- Prediction ---")
 print(f"Malayalam:   {predicted_text}")
 print(f"Romanized:   {romanized_pred}")
-print(f"Gloss:       {gloss_pred}")
 
 # print(f"\n--- CER: {cer_score:.4f}")
