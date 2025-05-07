@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
 
-##current cer=0.248
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         "facebook/wav2vec2-xls-r-300m",
