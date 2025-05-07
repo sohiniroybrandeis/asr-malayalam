@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from datasets import load_from_disk
 
-##current cer=0.253
 ###PRE-TRAINING CODE
 pt_feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
         "facebook/wav2vec2-xls-r-300m",
@@ -216,7 +215,7 @@ class CustomTrainer(Trainer):
 		return metrics
       
 training_args = TrainingArguments(
-	output_dir='pretraining-res-tammal',
+    output_dir='pretraining-res-tammal',
     gradient_checkpointing=False, 
     group_by_length=True,
     gradient_accumulation_steps=1,
@@ -251,8 +250,8 @@ pt_trainer = CustomTrainer(
     model=pt_model,
     data_collator=pt_data_collator,
     args=training_args,
-    train_dataset=pt_train,  # 10h or 30h version
-    eval_dataset=pt_test,   # Same eval dataset for both
+    train_dataset=pt_train,
+    eval_dataset=pt_test,
     tokenizer=pt_feature_extractor
 )
 
