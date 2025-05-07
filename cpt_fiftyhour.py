@@ -240,8 +240,8 @@ pt_trainer = CustomTrainer(
     model=pt_model,
     data_collator=pt_data_collator,
     args=training_args,
-    train_dataset=pt_train,  # 10h or 30h version
-    eval_dataset=pt_test,   # Same eval dataset for both
+    train_dataset=pt_train,
+    eval_dataset=pt_test,
     tokenizer=pt_feature_extractor
 )
 
